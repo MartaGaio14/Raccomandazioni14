@@ -1,17 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov 19 18:57:59 2020
-
-@author: gaiom
-"""
-print("ollelleeeeeee!!")
 import urllib
 from bs4 import BeautifulSoup
 import pandas
-import math
 import nltk
 nltk.download('punkt')
 from nltk.tokenize import word_tokenize
+import csv
 import tqdm
 
 
@@ -51,20 +44,21 @@ read_news.info(null_counts=True)
 news=pandas.DataFrame(read_news)
 print(news)
 
+news.loc[news["ID"] == "N113363"]
+news=news.drop(46236)
+
 news_file.close()
 
-dic={
-     1:news.loc[news["ID"] == S_norep[0]]}
 
-
-
+news2={}
+news2=pandas.DataFrame(news2)
 for i in tqdm.tqdm(range(0,len(S_norep))): 
     a=news.loc[news["ID"] == S_norep[i]]
     news2=pandas.concat([news2, a], ignore_index=True)
 
-news2=news2.drop(0)
-news2=news2.reset_index(drop=True)
-news2.head(10)
+print(news2)
+news2.info(null_counts=True)
+
  
 #estrazione del testo
     
@@ -82,9 +76,15 @@ def vattene(html):
     text = '\n'.join(chunk for chunk in chunks if chunk)
     return text
     
-t={ }
-for i in tqdm.tqdm(range(0, len(news2))):
-    url=news2.URL[i]
-    html = urllib.request.urlopen(url)
-    testo=vattene(html)
-    t[news2.ID[i]]=testo
+with open("testi.csv", "w") as file:
+    writer=csv.writer(file)
+    for i in tqdm.tqdm(range(0, len(news2))):
+        url=news2.URL[i]
+        html = urllib.request.urlopen(url)
+        testo=vattene(html)
+        writer.writerow([news2.ID[i], testo])
+        
+        
+        
+        
+        
