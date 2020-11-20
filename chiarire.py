@@ -4,7 +4,7 @@ Created on Thu Nov 19 18:57:59 2020
 
 @author: gaiom
 """
-print("FORZA!!")
+print("ollelleeeeeee!!")
 import urllib
 from bs4 import BeautifulSoup
 import pandas
