@@ -84,7 +84,7 @@ with open("testi.csv", "w") as file:
         testo=vattene(html)
         writer.writerow([news2.ID[i], testo])
         
-        
-        
+
+print("ciao")      
         
         
