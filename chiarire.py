@@ -2,11 +2,11 @@ import urllib
 from bs4 import BeautifulSoup
 import pandas
 import nltk
-nltk.download('punkt')
-from nltk.tokenize import word_tokenize
+#nltk.download('punkt')
 import csv
 import tqdm
-
+import re
+import numpy as np
 
 
 righe=1000
@@ -92,6 +92,75 @@ with open("testi.csv", "w") as file:
 csv_file = open("testi.csv", encoding="Latin1")
 read = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo"])
 print(read.head())
+
+read.info()
+
+
+############################PREPROCESSING DEI TESTI
+
+#estraiamo le parole dai testi: le salviamo in "parole", una lista di lista di liste di stringhe
+type(read.Testo)
+parole=[]
+for t in range(0,len(read)):
+    parole.append(read.Testo[t].split(" "))
+   
+    
+#RIMOZIONE DELLE STOPWORDS   
+from nltk.corpus import stopwords
+import re
+nltk.download('stopwords')
+stop_words= set(stopwords.words("english"))
+    
+lettere = list('abcdefghijklmnopqrstuvwxyz')
+numeri = list('0123456789')
+# reg=re.compile(r"[\w]+")
+
+for i in range(0,len(lettere)):
+    stop_words.add(lettere[i])
+for i in range(0,len(numeri)):
+    stop_words.add(numeri[i])
+
+#PART OF SPEACH TAGGING
+REM=['CC','CD','DT','EX','IN','LS','MD','PDT','POS','PRP','PSRP$','RB',
+     'RBR','RBS','TO','UH','WDT','WP','WPD$','WRB']
+
+#la funzione restituisce un vettore lungo come la lista di tuple con 0 se la tupla è da tenere e 1 
+#se è da togliere
+def eliminare(tagged_words1):
+   
+    togli=np.zeros(len(tagged_words1))
+    res = list(zip(*tagged_words1)) #zippiamo la lista di tuple
+    res=res[1] #prendiamo solo i tag
+    for i in np.arange(len(tagged_words1)):  
+        #il ciclo prende nota di quali sono le parole da eliminare 
+        tup=res[i]
+        for j in REM:
+            if tup==j:
+                togli[i]=1
+    return togli
+
+
+#ragiono solo su parole[0]
+i=0
+
+#tutto in minuscolo
+minuscolo=[]
+for j in range(0,len(parole[i])):
+    minuscolo.append(parole[i][j].lower())
+
+#rimuoviamo le stopwords
+words_nostop=[word for word in minuscolo if word not in stop_words]
+
+#rimuoviamo la punteggiatura
+words_nopunct= [word for word in words_nostop if word.isalnum()] 
+
+#part of speach tagging
+tagged_words=nltk.pos_tag(words_nopunct) 
+togli=eliminare(tagged_words)
+indici=np.zeros(int(sum(togli))) 
+togli= np.array(togli, dtype=int)
+finali=list(np.array(words_nopunct)[togli==0])
+
 
 csv_file.close()
         
