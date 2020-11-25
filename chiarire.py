@@ -26,8 +26,11 @@ comp=C[0:righe]
 Hist=[]
 Storie=[]
 for t in range(len(comp)):
-    Hist.append(word_tokenize(comp.History[t]))
-    Storie=Storie+word_tokenize(comp.History[t])
+    a=comp.History[t].split(" ")
+    Hist.append(a)
+    Storie=Storie+a
+   
+print(Hist)
 print(Storie)
 
 S_norep = list(dict.fromkeys(Storie))
