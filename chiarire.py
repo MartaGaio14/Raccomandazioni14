@@ -61,7 +61,6 @@ news2.info(null_counts=True)
 
  
 #estrazione del testo
-    
 def vattene(html):
     soup = BeautifulSoup(html) # create a new bs4 object from the html data loaded
     # remove all javascript and stylesheet code
@@ -85,6 +84,11 @@ with open("testi.csv", "w") as file:
         writer.writerow([news2.ID[i], testo])
         
 
-print("ciao")      
-        
+
+#apertura file testi
+csv_file = open("testi.csv", encoding="Latin1")
+read = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo"])
+print(read.head())
+
+csv_file.close()
         
