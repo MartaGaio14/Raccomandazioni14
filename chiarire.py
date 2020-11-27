@@ -8,9 +8,48 @@ import tqdm
 import re
 import numpy as np
 
-
 righe=1000
 #dataset con i comportamenti degli users
+tsv=np.genfromtxt("behaviors.tsv", delimiter="\t", names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3], max_rows=righe, dtype=object)
+
+
+Hist=[]
+Storie=[]
+for i in range(0,len(tsv)):
+    Hist.append(str(tsv[i][1]))
+    if tsv[i][1] is not b'':
+        a.append(True)
+    else:
+        a.append(False)
+        
+#stavo cercando di costruire Hist e Storie direttamente ma non ho finito
+#e non so se abbia senso ahah
+
+for t in range(len(tsv)):
+    a=tsv[t][1].split("\s+")
+    Hist.append(a)
+    Storie=Storie+a
+   
+print(Hist)
+print(Storie)
+
+S_norep = list(dict.fromkeys(Storie))
+
+
+np.isnan(tsv[987][1])
+for i in tqdm.tqdm(range(0,len(tsv))):
+    b=np.isnan(tsv[i][1])
+
+nan_array = np.isnan(array1)
+not_nan_array = ~ nan_array
+array2 = array1[not_nan_array]
+
+   
+
+    
+    
+
+
 tsv_file = open("behaviors.tsv")
 read_tsv = pandas.read_csv(tsv_file, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3])
 tsv_file.close()
@@ -25,6 +64,7 @@ comp=C[0:righe]
 
 Hist=[]
 Storie=[]
+
 for t in range(len(comp)):
     a=comp.History[t].split(" ")
     Hist.append(a)
@@ -34,7 +74,7 @@ print(Hist)
 print(Storie)
 
 S_norep = list(dict.fromkeys(Storie))
-print()
+
 
 
 
