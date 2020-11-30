@@ -135,11 +135,10 @@ print(read.head())
 
 read.info()
 
-
 ############################PREPROCESSING DEI TESTI
 
 #estraiamo le parole dai testi: le salviamo in "parole", una lista di lista di liste di stringhe
-type(read.Testo)
+
 parole=[]
 for t in range(0,len(read)):
     parole.append(read.Testo[t].split(" "))
@@ -147,7 +146,7 @@ for t in range(0,len(read)):
     
 #RIMOZIONE DELLE STOPWORDS   
 from nltk.corpus import stopwords
-import re
+
 nltk.download('stopwords')
 stop_words= set(stopwords.words("english"))
     
@@ -179,27 +178,88 @@ def eliminare(tagged_words1):
                 togli[i]=1
     return togli
 
+#LEMMING
+from nltk.stem.wordnet import WordNetLemmatizer
+nltk.download('wordnet')
+lem = WordNetLemmatizer()
 
-#ragiono solo su parole[0]
-i=0
 
-#tutto in minuscolo
-minuscolo=[]
-for j in range(0,len(parole[i])):
-    minuscolo.append(parole[i][j].lower())
 
-#rimuoviamo le stopwords
-words_nostop=[word for word in minuscolo if word not in stop_words]
+texts=[]
+for i in tqdm.tqdm(range(len(parole))):
+    #tutto in minuscolo
+    minuscolo=[]
+    for j in range(0,len(parole[i])):
+        minuscolo.append(parole[i][j].lower())
+    #rimozione delle stopwords
+    words_nostop=[word for word in minuscolo if word not in stop_words]
+    #rimozione della punteggiatura
+    words_nopunct= [word for word in words_nostop if word.isalnum()] 
+    #part of speach tagging
+    tagged_words=nltk.pos_tag(words_nopunct) 
+    togli=eliminare(tagged_words)
+    indici=np.zeros(int(sum(togli))) 
+    togli= np.array(togli, dtype=int)
+    finali=list(np.array(words_nopunct)[togli==0])
+    #lemming
+    lemmed_words=[]
+    for w in finali:
+        lemmed_words.append(lem.lemmatize(w,"v"))
+    finali=lemmed_words
+    #salvo le parole rimaste per ogni documento in una lista di liste
+    texts.append(finali)
+#############################FINE PREPROCESSING DEI DATI
+    
+####wordcloud per un controllo visivo
+import matplotlib.pyplot as plt
+def plot_cloud(wordcloud):
+    # Set figure size
+    plt.figure(figsize=(40, 30))
+    # Display image
+    plt.imshow(wordcloud) 
+    # No axis details
+    plt.axis("off");
 
-#rimuoviamo la punteggiatura
-words_nopunct= [word for word in words_nostop if word.isalnum()] 
+from wordcloud import WordCloud
+# Generate word cloud
 
-#part of speach tagging
-tagged_words=nltk.pos_tag(words_nopunct) 
-togli=eliminare(tagged_words)
-indici=np.zeros(int(sum(togli))) 
-togli= np.array(togli, dtype=int)
-finali=list(np.array(words_nopunct)[togli==0])
+stringa_text=str(texts[1])
+import string
+
+out = stringa_text.replace("'","")
+out1=out.replace(",","")
+out2=out1.replace("]","")
+out3=out2.replace("[","")
+
+
+
+wordcloud = WordCloud(width = 3000, height = 2000, random_state=1, 
+                      collocations=False).generate(out3)
+# Plot
+plot_cloud(wordcloud)
+    
+    
+#############################LDA
+  
+# Count word frequencies
+from collections import defaultdict
+frequency = defaultdict(int)
+for text in texts:
+    for token in text:
+        frequency[token] += 1
+# Only keep words that appear more than once
+processed_corpus = [[token for token in text if frequency[token] > 1] 
+                    for text in texts]
+#we want to associate each word in the corpus with a unique integer ID
+# We can do this using the gensim.corpora.Dictionary class. This dictionary defines the 
+#vocabulary of all words that our processing knows about
+from gensim import corpora, models
+dictionary=corpora.Dictionary(processed_corpus)
+#rappresentazione tramite vettori dei documenti
+corpus=[dictionary.doc2bow(text) for text in processed_corpus]
+ldamodel=models.ldamodel.LdaModel(corpus, num_topics=10, id2word=dictionary, passes=20)
+
+print(ldamodel.print_topics(num_topics=3, num_words=3))
 
 
 csv_file.close()
