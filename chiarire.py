@@ -6,6 +6,7 @@ import nltk
 import csv
 import tqdm
 import re
+import string
 import numpy as np
 
 righe=1000
@@ -13,43 +14,22 @@ righe=1000
 tsv=np.genfromtxt("behaviors.tsv", delimiter="\t", names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3], max_rows=righe, dtype=object)
 
 
-Hist=[]
-Storie=[]
+Hist=[] #lista di liste (divisione utenti)
+Storie=[] #lista id articoli (con ripetizione)
 for i in range(0,len(tsv)):
-    Hist.append(str(tsv[i][1]))
-    if tsv[i][1] is not b'':
-        a.append(True)
-    else:
-        a.append(False)
-        
-#stavo cercando di costruire Hist e Storie direttamente ma non ho finito
-#e non so se abbia senso ahah
-
-for t in range(len(tsv)):
-    a=tsv[t][1].split("\s+")
-    Hist.append(a)
-    Storie=Storie+a
-   
-print(Hist)
-print(Storie)
-
-S_norep = list(dict.fromkeys(Storie))
+    if tsv[i][1] != b'':
+        s=str(tsv[i][1])
+        out=s.replace("b'","")
+        out=out.replace("'","")
+        a=out.split(" ")
+        Hist.append(a)
+        Storie=Storie+a
+  
+S_norep = list(dict.fromkeys(Storie)) #lista senza ripetizioni
 
 
-np.isnan(tsv[987][1])
-for i in tqdm.tqdm(range(0,len(tsv))):
-    b=np.isnan(tsv[i][1])
-
-nan_array = np.isnan(array1)
-not_nan_array = ~ nan_array
-array2 = array1[not_nan_array]
-
-   
-
-    
-    
-
-
+#==================================================================
+#CON PANDAS!!!!
 tsv_file = open("behaviors.tsv")
 read_tsv = pandas.read_csv(tsv_file, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3])
 tsv_file.close()
@@ -74,20 +54,26 @@ print(Hist)
 print(Storie)
 
 S_norep = list(dict.fromkeys(Storie))
-
+#====================================================================
 
 
 
 
 
 #dataset con i dati riguardanti gli items
+news=np.genfromtxt("news.tsv", delimiter="\t", names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5], dtype=object)
+
+
+#===================================================================
+#CON PANDAS!!!!!!!!!!!
+
 news_file=open("news.tsv", encoding="Latin1")
 read_news=pandas.read_csv(news_file, sep="\t", header=None, names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5])
 read_news.info(null_counts=True)
 news=pandas.DataFrame(read_news)
 print(news)
 
-news.loc[news["ID"] == "N113363"]
+news.loc[news["ID"] == "N113363"] #rimuove articolo senza url
 news=news.drop(46236)
 
 news_file.close()
@@ -96,8 +82,8 @@ news_file.close()
 news2={}
 news2=pandas.DataFrame(news2)
 for i in tqdm.tqdm(range(0,len(S_norep))): 
-    a=news.loc[news["ID"] == S_norep[i]]
-    news2=pandas.concat([news2, a], ignore_index=True)
+    a=news.loc[news["ID"] == S_norep[i]] #prende articoli contenuti in Snorep
+    news2=pandas.concat([news2, a], ignore_index=True) #nuovo dataset
 
 print(news2)
 news2.info(null_counts=True)
@@ -142,8 +128,8 @@ read.info()
 parole=[]
 for t in range(0,len(read)):
     parole.append(read.Testo[t].split(" "))
-   
     
+
 #RIMOZIONE DELLE STOPWORDS   
 from nltk.corpus import stopwords
 
