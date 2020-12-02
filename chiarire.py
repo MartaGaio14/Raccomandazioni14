@@ -6,29 +6,27 @@ import nltk
 import csv
 import tqdm
 import re
-import string
 import numpy as np
 
 righe=1000
 #dataset con i comportamenti degli users
 tsv=np.genfromtxt("behaviors.tsv", delimiter="\t", names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3], max_rows=righe, dtype=object)
-
+Utenti=tsv["UID"].astype(str)   #lista di tutti gli id degli utenti
+Art=tsv["History"].astype(str) 
 
 Hist=[] #lista di liste (divisione utenti)
 Storie=[] #lista id articoli (con ripetizione)
 for i in range(0,len(tsv)):
-    if tsv[i][1] != b'':
-        s=str(tsv[i][1])
-        out=s.replace("b'","")
-        out=out.replace("'","")
-        a=out.split(" ")
+    if Art[i] != '':
+        a=Art[i].split(" ")
         Hist.append(a)
         Storie=Storie+a
   
-S_norep = list(dict.fromkeys(Storie)) #lista senza ripetizioni
+S_norep = list(dict.fromkeys(Storie))
+#crea dizionario con k=articoli (non ripetuti)
 
 
-#==================================================================
+#=============================================================================
 #CON PANDAS!!!!
 tsv_file = open("behaviors.tsv")
 read_tsv = pandas.read_csv(tsv_file, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3])
@@ -54,14 +52,30 @@ print(Hist)
 print(Storie)
 
 S_norep = list(dict.fromkeys(Storie))
-#====================================================================
+#==============================================================================
 
 
 
 
 
 #dataset con i dati riguardanti gli items
-news=np.genfromtxt("news.tsv", delimiter="\t", names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5], dtype=object)
+news_file=open("news.tsv", encoding="Latin1")
+news=np.genfromtxt(news_file, delimiter="\t", names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5], dtype=object, comments=None)
+news_file.close()
+
+
+# News_id=news["ID"].astype(str) 
+# for j in range(0,len(news)):
+#     if News_id[j] == "N113363":
+#         break
+# news=news.drop(j)
+    
+news2=[]
+for i in tqdm.tqdm(range(0,len(S_norep))):
+    a=news[np.where(news["ID"].astype(str)==S_norep[i])] #prende articoli contenuti in S_norep
+    a=list(str(a).split(", b"))
+    news2.append(a)
+
 
 
 #===================================================================
@@ -87,17 +101,18 @@ for i in tqdm.tqdm(range(0,len(S_norep))):
 
 print(news2)
 news2.info(null_counts=True)
-
+#==============================================================================
  
+
 #estrazione del testo
 def vattene(html):
-    soup = BeautifulSoup(html) # create a new bs4 object from the html data loaded
-    # remove all javascript and stylesheet code
+    soup = BeautifulSoup(html) # crea oggetto bs4 dal link html
+    # rimuove javascript e stylesheet code
     for script in soup(["script", "style"]): 
         script.extract()
     text = soup.get_text()
-    # break into lines and remove leading and trailing space on each
-    lines = (line.strip() for line in text.splitlines())
+    # divide il testo in righe e rimuove spazi iniziali e finali
+    lines = (line.strip() for line in text.splitlines()) #crea generatore
     # break multi-headlines into a line each
     chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
     # drop blank lines
@@ -107,21 +122,26 @@ def vattene(html):
 with open("testi.csv", "w") as file:
     writer=csv.writer(file)
     for i in tqdm.tqdm(range(0, len(news2))):
-        url=news2.URL[i]
+        url=news2[i][4].replace("')]","")
+        url=url.replace("'","")
         html = urllib.request.urlopen(url)
         testo=vattene(html)
-        writer.writerow([news2.ID[i], testo])
+        n_id=news2[i][0].replace("[(b'","")
+        n_id=n_id.replace("'","")
+        writer.writerow([n_id, testo])
         
-
 
 #apertura file testi
 csv_file = open("testi.csv", encoding="Latin1")
 read = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo"])
+read = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) #equivalente
 print(read.head())
+
+csv_file.close()
 
 read.info()
 
-############################PREPROCESSING DEI TESTI
+########PREPROCESSING DEI TESTI
 
 #estraiamo le parole dai testi: le salviamo in "parole", una lista di lista di liste di stringhe
 
@@ -152,7 +172,6 @@ REM=['CC','CD','DT','EX','IN','LS','MD','PDT','POS','PRP','PSRP$','RB',
 #la funzione restituisce un vettore lungo come la lista di tuple con 0 se la tupla è da tenere e 1 
 #se è da togliere
 def eliminare(tagged_words1):
-   
     togli=np.zeros(len(tagged_words1))
     res = list(zip(*tagged_words1)) #zippiamo la lista di tuple
     res=res[1] #prendiamo solo i tag
@@ -169,7 +188,7 @@ from nltk.stem.wordnet import WordNetLemmatizer
 nltk.download('wordnet')
 lem = WordNetLemmatizer()
 
-
+nltk.download('averaged_perceptron_tagger')
 
 texts=[]
 for i in tqdm.tqdm(range(len(parole))):
