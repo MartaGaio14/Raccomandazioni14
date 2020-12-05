@@ -47,9 +47,7 @@ for t in range(len(comp)):
     a=comp.History[t].split(" ")
     Hist.append(a)
     Storie=Storie+a
-   
-print(Hist)
-print(Storie)
+
 
 S_norep = list(dict.fromkeys(Storie))
 #==============================================================================
@@ -85,12 +83,17 @@ news_file=open("news.tsv", encoding="Latin1")
 read_news=pandas.read_csv(news_file, sep="\t", header=None, names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5])
 read_news.info(null_counts=True)
 news=pandas.DataFrame(read_news)
-print(news)
-
-news.loc[news["ID"] == "N113363"] #rimuove articolo senza url
-news=news.drop(46236)
-
 news_file.close()
+
+#Rimozione dell'articolo senza url: codice "N113363"
+news.loc[news["ID"] == "N113363"] 
+news=news.drop(46236)
+#lo rimuovo anche da S_norep
+S_norep.remove("N113363")
+#lo rimuovo anche da Hist
+for i in range(len(Hist)):
+    if Hist[i].count("N113363")>0:
+        Hist[i].remove("N113363")
 
 
 news2={}
@@ -134,8 +137,8 @@ with open("testi.csv", "w") as file:
 #apertura file testi
 csv_file = open("testi.csv", encoding="Latin1")
 read = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo"])
-read = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) #equivalente
-print(read.head())
+#read = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) #equivalente
+
 
 csv_file.close()
 
@@ -153,7 +156,7 @@ for t in range(0,len(read)):
 #RIMOZIONE DELLE STOPWORDS   
 from nltk.corpus import stopwords
 
-nltk.download('stopwords')
+#nltk.download('stopwords')
 stop_words= set(stopwords.words("english"))
     
 lettere = list('abcdefghijklmnopqrstuvwxyz')
@@ -185,45 +188,57 @@ def eliminare(tagged_words1):
 
 #LEMMING
 from nltk.stem.wordnet import WordNetLemmatizer
-nltk.download('wordnet')
+#nltk.download('wordnet')
 lem = WordNetLemmatizer()
 
-nltk.download('averaged_perceptron_tagger')
+#nltk.download('averaged_perceptron_tagger')
+def preprocessing(parole):
+    texts=[]
+    for i in tqdm.tqdm(range(len(parole))):
+        #tutto in minuscolo
+        minuscolo=[]
+        for j in range(0,len(parole[i])):
+            minuscolo.append(parole[i][j].lower())
+        #rimozione delle stopwords
+        words_nostop=[word for word in minuscolo if word not in stop_words]
+        #rimozione della punteggiatura
+        words_nopunct= [word for word in words_nostop if word.isalnum()] 
+        #part of speach tagging
+        tagged_words=nltk.pos_tag(words_nopunct) 
+        togli=eliminare(tagged_words)
+        togli= np.array(togli, dtype=int)
+        finali=list(np.array(words_nopunct)[togli==0])
+        #lemming
+        lemmed_words=[]
+        for w in finali:
+            lemmed_words.append(lem.lemmatize(w,"v"))
+        finali=lemmed_words
+        #salvo le parole rimaste per ogni documento in una lista di liste
+        texts.append(finali)
+    return texts
 
-texts=[]
-for i in tqdm.tqdm(range(len(parole))):
-    #tutto in minuscolo
-    minuscolo=[]
-    for j in range(0,len(parole[i])):
-        minuscolo.append(parole[i][j].lower())
-    #rimozione delle stopwords
-    words_nostop=[word for word in minuscolo if word not in stop_words]
-    #rimozione della punteggiatura
-    words_nopunct= [word for word in words_nostop if word.isalnum()] 
-    #part of speach tagging
-    tagged_words=nltk.pos_tag(words_nopunct) 
-    togli=eliminare(tagged_words)
-    indici=np.zeros(int(sum(togli))) 
-    togli= np.array(togli, dtype=int)
-    finali=list(np.array(words_nopunct)[togli==0])
-    #lemming
-    lemmed_words=[]
-    for w in finali:
-        lemmed_words.append(lem.lemmatize(w,"v"))
-    finali=lemmed_words
-    #salvo le parole rimaste per ogni documento in una lista di liste
-    texts.append(finali)
+texts=preprocessing(parole)    
+
+# per salvare i testi processati in un file (UTILE PER QUANDO SAREMO SICURE SUL 
+#PREPROCESSING)
+# with open("testi_processati.csv", "w") as file:
+#     writer=csv.writer(file)
+#     for i in range(len(S_norep)):
+#         writer.writerow([S_norep[i],  texts[i]])
+
 #############################FINE PREPROCESSING DEI DATI
     
 ####wordcloud per un controllo visivo
 import matplotlib.pyplot as plt
 def plot_cloud(wordcloud):
-    # Set figure size
-    plt.figure(figsize=(40, 30))
-    # Display image
-    plt.imshow(wordcloud) 
-    # No axis details
-    plt.axis("off");
+   
+    
+# Set figure size
+plt.figure(figsize=(40, 30))
+# Display image
+plt.imshow(wordcloud) 
+# No axis details
+plt.axis("off");
 
 from wordcloud import WordCloud
 # Generate word cloud
@@ -244,7 +259,7 @@ wordcloud = WordCloud(width = 3000, height = 2000, random_state=1,
 plot_cloud(wordcloud)
     
     
-#############################LDA
+#############################LDA (CON gensim)
   
 # Count word frequencies
 from collections import defaultdict
@@ -260,11 +275,57 @@ processed_corpus = [[token for token in text if frequency[token] > 1]
 #vocabulary of all words that our processing knows about
 from gensim import corpora, models
 dictionary=corpora.Dictionary(processed_corpus)
+
+#modo per creare a mano il dizionario (attenzione: qui sono state lasciate le parole 
+# con frequenza pari a 1)----> IMPLEMENTARE FUNZIONE CHE RIMUOVE LE PAROLE CON FREQ=1
+# tutti=[]
+# for i in tqdm.tqdm(range(len(texts))):
+#     tutti=tutti+texts[i]
+    
+# dizionario_corpus = list(dict.fromkeys(tutti))
+
+
 #rappresentazione tramite vettori dei documenti
 corpus=[dictionary.doc2bow(text) for text in processed_corpus]
-ldamodel=models.ldamodel.LdaModel(corpus, num_topics=10, id2word=dictionary, passes=20)
+ldamodel=models.ldamodel.LdaModel(corpus, num_topics=100, id2word=dictionary, passes=20)
 
-print(ldamodel.print_topics(num_topics=3, num_words=3))
+from pprint import pprint
+#pretty-print (si capisce meglio)
+pprint(ldamodel.print_topics())
+
+#ottengo la rappresentazione in dimesioni latenti di tutti i testi del corpus
+doc_lda = ldamodel[corpus]
+pprint(doc_lda[1])
+
+#vediamo quante dimensioni latenti hanno pesi diversi da zero per ogni articolo
+lunghezze=[]
+for t in doc_lda:
+    lunghezze.append(len(t))
+    
+import matplotlib.pyplot as plt
+plt.plot(lunghezze)
+###ne basterebbero 35!
+
+##salvo la rappresentazione in dimensioni latenti in un file csv
+with open("testi_lda.csv", "w") as file:
+    writer=csv.writer(file)
+    for i in range(len(S_norep)):
+        writer.writerow([S_norep[i],  doc_lda[i]])
+
+#apertura del file csv con idnews+rappresentazione  dimensioni latenti
+csv_file = open("testi_lda.csv", encoding="Latin1")
+LDA_OUT = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo_LDA"])
+csv_file.close()
+
+
+
+
+
+
+    
+    
+
+
 
 
 csv_file.close()
