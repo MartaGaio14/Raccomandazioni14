@@ -10,24 +10,9 @@ import numpy as np
 
 righe=1000
 #dataset con i comportamenti degli users
-tsv=np.genfromtxt("behaviors.tsv", delimiter="\t", names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3], max_rows=righe, dtype=object)
-Utenti=tsv["UID"].astype(str)   #lista di tutti gli id degli utenti
-Art=tsv["History"].astype(str) 
-
-Hist=[] #lista di liste (divisione utenti)
-Storie=[] #lista id articoli (con ripetizione)
-for i in range(0,len(tsv)):
-    if Art[i] != '':
-        a=Art[i].split(" ")
-        Hist.append(a)
-        Storie=Storie+a
-  
-S_norep = list(dict.fromkeys(Storie))
-#crea dizionario con k=articoli (non ripetuti)
 
 
-#=============================================================================
-#CON PANDAS!!!!
+#dataset con i comportamenti degli users
 tsv_file = open("behaviors.tsv")
 read_tsv = pandas.read_csv(tsv_file, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3])
 tsv_file.close()
@@ -39,62 +24,27 @@ C=C.reset_index(drop=True)
 C.info(null_counts=True)
 
 comp=C[0:righe]
-
 Hist=[]
 Storie=[]
-
-for t in range(len(comp)):
+for t in tqdm.tqdm(range(len(comp))):
     a=comp.History[t].split(" ")
     Hist.append(a)
-    Storie=Storie+a
-
+    Storie.extend(a)
 
 S_norep = list(dict.fromkeys(Storie))
-#==============================================================================
-
-
-
 
 
 #dataset con i dati riguardanti gli items
 news_file=open("news.tsv", encoding="Latin1")
-news=np.genfromtxt(news_file, delimiter="\t", names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5], dtype=object, comments=None)
-news_file.close()
-
-
-# News_id=news["ID"].astype(str) 
-# for j in range(0,len(news)):
-#     if News_id[j] == "N113363":
-#         break
-# news=news.drop(j)
-    
-news2=[]
-for i in tqdm.tqdm(range(0,len(S_norep))):
-    a=news[np.where(news["ID"].astype(str)==S_norep[i])] #prende articoli contenuti in S_norep
-    a=list(str(a).split(", b"))
-    news2.append(a)
-
-
-
-#===================================================================
-#CON PANDAS!!!!!!!!!!!
-
-news_file=open("news.tsv", encoding="Latin1")
 read_news=pandas.read_csv(news_file, sep="\t", header=None, names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5])
 read_news.info(null_counts=True)
 news=pandas.DataFrame(read_news)
-news_file.close()
+print(news)
 
-#Rimozione dell'articolo senza url: codice "N113363"
-news.loc[news["ID"] == "N113363"] 
+news.loc[news["ID"] == "N113363"] #rimuove articolo senza url
 news=news.drop(46236)
-#lo rimuovo anche da S_norep
-S_norep.remove("N113363")
-#lo rimuovo anche da Hist
-for i in range(len(Hist)):
-    if Hist[i].count("N113363")>0:
-        Hist[i].remove("N113363")
 
+news_file.close()
 
 news2={}
 news2=pandas.DataFrame(news2)
@@ -104,50 +54,43 @@ for i in tqdm.tqdm(range(0,len(S_norep))):
 
 print(news2)
 news2.info(null_counts=True)
-#==============================================================================
- 
+
 
 #estrazione del testo
 def vattene(html):
     soup = BeautifulSoup(html) # crea oggetto bs4 dal link html
-    # rimuove javascript e stylesheet code
+    # remove javascript and stylesheet code
     for script in soup(["script", "style"]): 
         script.extract()
     text = soup.get_text()
-    # divide il testo in righe e rimuove spazi iniziali e finali
+    # break into lines and remove leading and trailing space on each
     lines = (line.strip() for line in text.splitlines()) #crea generatore
     # break multi-headlines into a line each
     chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
     # drop blank lines
     text = '\n'.join(chunk for chunk in chunks if chunk)
     return text
+
     
+# file testi estratti (titolo compreso)
 with open("testi.csv", "w") as file:
-    writer=csv.writer(file)
-    for i in tqdm.tqdm(range(0, len(news2))):
-        url=news2[i][4].replace("')]","")
-        url=url.replace("'","")
-        html = urllib.request.urlopen(url)
-        testo=vattene(html)
-        n_id=news2[i][0].replace("[(b'","")
-        n_id=n_id.replace("'","")
-        writer.writerow([n_id, testo])
+     writer=csv.writer(file)
+     for i in tqdm.tqdm(range(0, len(news2))):
+         url=news2.URL[i]
+         html = urllib.request.urlopen(url)
+         testo=vattene(html)
+         writer.writerow([news2.ID[i], testo]) 
         
 
 #apertura file testi
-csv_file = open("testi.csv", encoding="Latin1")
-read = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo"])
-#read = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) #equivalente
-
-
-csv_file.close()
-
+read = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) 
+print(read.head())
 read.info()
+
 
 ########PREPROCESSING DEI TESTI
 
 #estraiamo le parole dai testi: le salviamo in "parole", una lista di lista di liste di stringhe
-
 parole=[]
 for t in range(0,len(read)):
     parole.append(read.Testo[t].split(" "))
@@ -228,17 +171,16 @@ texts=preprocessing(parole)
 
 #############################FINE PREPROCESSING DEI DATI
     
+
 ####wordcloud per un controllo visivo
 import matplotlib.pyplot as plt
-def plot_cloud(wordcloud):
-   
-    
-# Set figure size
-plt.figure(figsize=(40, 30))
-# Display image
-plt.imshow(wordcloud) 
-# No axis details
-plt.axis("off");
+def plot_cloud(wordcloud):  
+    # Set figure size
+    plt.figure(figsize=(40, 30))
+    # Display image
+    plt.imshow(wordcloud) 
+    # No axis details
+    plt.axis("off");
 
 from wordcloud import WordCloud
 # Generate word cloud
@@ -251,15 +193,106 @@ out1=out.replace(",","")
 out2=out1.replace("]","")
 out3=out2.replace("[","")
 
-
-
 wordcloud = WordCloud(width = 3000, height = 2000, random_state=1, 
                       collocations=False).generate(out3)
 # Plot
 plot_cloud(wordcloud)
     
+
+
+######## TF.IDF
+
+def CountFreq(word_list):
+    word_dict={} 
+    for word in word_list:
+        if word not in word_dict:
+            word_dict[word]=1
+        else:
+            word_dict[word]+=1
+    return word_dict
     
-#############################LDA (CON gensim)
+
+# n_{i,j}} numero di occorrenze del termine i nel documento j 
+#|d_{j}|} numero di termini del documento 
+#|D| è il numero di documenti nella collezione
+#|{d: i in d}| numero di documenti che contengono il termine i  
+
+def TF_IDF(texts):
+    tot_doc=[]  
+    for i in range(0, len(texts)): 
+        b=CountFreq(texts[i])
+        tot_doc.append(b) #lista di dizionari freq per ogni documento
+    N=len(tot_doc)
+    tfidf_corpus = []    
+    for j in tqdm.tqdm(range(0, len(tot_doc))):
+        k=list(tot_doc[j].keys())
+        tfidf_doc={}
+        for i in range(0, len(tot_doc[j])):
+            tf=tot_doc[j][k[i]]/len(tot_doc[j])
+            count=0
+            for z in range(0, len(tot_doc)):
+                if k[i] in tot_doc[z]:
+                    count+=1
+            idf=np.log(N/count)
+            tfidf_doc[k[i]]= tf*idf
+        tfidf_corpus.append(tfidf_doc)
+    return tfidf_corpus   
+  
+    
+  
+
+def TF_IDF(texts):
+    tot_doc=[]
+    tot_words=[]
+    for i in range(0, len(texts)): 
+        b=CountFreq(texts[i])
+        tot_doc.append(b) #lista di dizionari freq per ogni documento
+        tot_words.extend(texts[i])
+    tot_words=np.unique(tot_words)
+    indexes=np.unique(tot_words, return_index=True)[1]
+    [tot_words[index] for index in sorted(indexes)]
+    
+    for x.askeys() in tqdm.tqdm(tot_words):
+        count=0
+        for j in range(0, len(tot_doc)):
+            if x in tot_doc[j]:
+                count+=1
+    
+    N=len(tot_doc)
+    tfidf_corpus = []    
+    for j in tqdm.tqdm(range(0, len(tot_doc))):
+        k=list(tot_doc[j].keys())
+        tfidf_doc={}
+        for i in range(0, len(tot_doc[j])):
+            tf=tot_doc[j][k[i]]/len(tot_doc[j])
+            count=0
+            for z in range(0, len(tot_doc)):
+                if k[i] in tot_doc[z]:
+                    count+=1
+            idf=np.log(N/count)
+            tfidf_doc[k[i]]= tf*idf
+        tfidf_corpus.append(tfidf_doc)
+    return tfidf_corpus   
+
+x=TF_IDF(texts)
+
+
+from gensim import corpora, models
+dictionary = corpora.Dictionary(texts)
+bow_corpus = [dictionary.doc2bow(doc) for doc in texts]
+tfidf = models.TfidfModel(bow_corpus)
+corpus_tfidf = tfidf[bow_corpus]
+len(corpus_tfidf)
+from pprint import pprint
+for doc in corpus_tfidf:
+    pprint(doc)
+    break      
+
+corpus_tfidf[0]
+x[0]
+    
+    
+###########################LDA (CON gensim)
   
 # Count word frequencies
 from collections import defaultdict
@@ -316,7 +349,6 @@ with open("testi_lda.csv", "w") as file:
 csv_file = open("testi_lda.csv", encoding="Latin1")
 LDA_OUT = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo_LDA"])
 csv_file.close()
-
 
 
 
