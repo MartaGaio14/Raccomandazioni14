@@ -232,12 +232,12 @@ def TF_IDF(texts):
     tfidf_corpus = []
     for j in tqdm.tqdm(range(0, len(tot_doc))):
         k=list(tot_doc[j].keys())
-        tfidf_doc={}
+        tfidf_doc=[]
         for i in range(0, len(tot_doc[j])):
             max_f=max(list(tot_doc[j].values())) #parola con massima freq nel documento j
             tf=tot_doc[j][k[i]]/max_f
             idf=np.log10(N/n_i[k[i]]) #n_i[k[i]] n documenti che contengono termine i
-            tfidf_doc[k[i]]= tf*idf
+            tfidf_doc.append([k[i], tf*idf])
         tfidf_corpus.append(tfidf_doc)
     return tfidf_corpus   
       
