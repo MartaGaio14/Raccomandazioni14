@@ -212,84 +212,36 @@ def CountFreq(word_list):
     return word_dict
     
 
-# n_{i,j}} numero di occorrenze del termine i nel documento j 
-#|d_{j}|} numero di termini del documento 
+# n_{i,j} numero di occorrenze del termine i nel documento j 
+# max n_{i,j} numero di occorrenze massimo nel documento j
 #|D| è il numero di documenti nella collezione
-#|{d: i in d}| numero di documenti che contengono il termine i  
+#|{d: i in d}| numero di documenti che contengono il termine i
+ 
+      
 
 def TF_IDF(texts):
-    tot_doc=[]  
-    for i in range(0, len(texts)): 
-        b=CountFreq(texts[i])
-        tot_doc.append(b) #lista di dizionari freq per ogni documento
-    N=len(tot_doc)
-    tfidf_corpus = []    
+    tot_doc=[] #lista di dizionari freq per ogni documento
+    allwords=[]#lista parole singole per ogni documento 
+    for z in range(0, len(texts)): 
+        b=CountFreq(texts[z])
+        tot_doc.append(b) 
+        norep=np.unique(texts[z])
+        allwords.extend(norep)    
+    n_i=CountFreq(allwords) #numero di documenti che contengono un termine 
+    N=len(tot_doc) #numero di documenti nel corpus
+    tfidf_corpus = []
     for j in tqdm.tqdm(range(0, len(tot_doc))):
         k=list(tot_doc[j].keys())
         tfidf_doc={}
         for i in range(0, len(tot_doc[j])):
-            tf=tot_doc[j][k[i]]/len(tot_doc[j])
-            count=0
-            for z in range(0, len(tot_doc)):
-                if k[i] in tot_doc[z]:
-                    count+=1
-            idf=np.log(N/count)
+            max_f=max(list(tot_doc[j].values())) #parola con massima freq nel documento j
+            tf=tot_doc[j][k[i]]/max_f
+            idf=np.log10(N/n_i[k[i]]) #n_i[k[i]] n documenti che contengono termine i
             tfidf_doc[k[i]]= tf*idf
         tfidf_corpus.append(tfidf_doc)
     return tfidf_corpus   
-  
-    
-  
-
-def TF_IDF(texts):
-    tot_doc=[]
-    tot_words=[]
-    for i in range(0, len(texts)): 
-        b=CountFreq(texts[i])
-        tot_doc.append(b) #lista di dizionari freq per ogni documento
-        tot_words.extend(texts[i])
-    tot_words=np.unique(tot_words)
-    indexes=np.unique(tot_words, return_index=True)[1]
-    [tot_words[index] for index in sorted(indexes)]
-    
-    for x.askeys() in tqdm.tqdm(tot_words):
-        count=0
-        for j in range(0, len(tot_doc)):
-            if x in tot_doc[j]:
-                count+=1
-    
-    N=len(tot_doc)
-    tfidf_corpus = []    
-    for j in tqdm.tqdm(range(0, len(tot_doc))):
-        k=list(tot_doc[j].keys())
-        tfidf_doc={}
-        for i in range(0, len(tot_doc[j])):
-            tf=tot_doc[j][k[i]]/len(tot_doc[j])
-            count=0
-            for z in range(0, len(tot_doc)):
-                if k[i] in tot_doc[z]:
-                    count+=1
-            idf=np.log(N/count)
-            tfidf_doc[k[i]]= tf*idf
-        tfidf_corpus.append(tfidf_doc)
-    return tfidf_corpus   
-
+      
 x=TF_IDF(texts)
-
-
-from gensim import corpora, models
-dictionary = corpora.Dictionary(texts)
-bow_corpus = [dictionary.doc2bow(doc) for doc in texts]
-tfidf = models.TfidfModel(bow_corpus)
-corpus_tfidf = tfidf[bow_corpus]
-len(corpus_tfidf)
-from pprint import pprint
-for doc in corpus_tfidf:
-    pprint(doc)
-    break      
-
-corpus_tfidf[0]
-x[0]
     
     
 ###########################LDA (CON gensim)
