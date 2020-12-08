@@ -10,9 +10,6 @@ import numpy as np
 
 righe=1000
 #dataset con i comportamenti degli users
-
-
-#dataset con i comportamenti degli users
 tsv_file = open("behaviors.tsv")
 read_tsv = pandas.read_csv(tsv_file, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1,3])
 tsv_file.close()
@@ -104,7 +101,6 @@ stop_words= set(stopwords.words("english"))
     
 lettere = list('abcdefghijklmnopqrstuvwxyz')
 numeri = list('0123456789')
-# reg=re.compile(r"[\w]+")
 
 for i in range(0,len(lettere)):
     stop_words.add(lettere[i])
@@ -269,10 +265,16 @@ dictionary=corpora.Dictionary(processed_corpus)
     
 # dizionario_corpus = list(dict.fromkeys(tutti))
 
-
 #rappresentazione tramite vettori dei documenti
 corpus=[dictionary.doc2bow(text) for text in processed_corpus]
+
+import pickle 
+filename = 'lda_model.sav'
 ldamodel=models.ldamodel.LdaModel(corpus, num_topics=100, id2word=dictionary, passes=20)
+pickle.dump(ldamodel, open(filename, 'wb')) #per salvare il modello su file
+
+# load the model from disk...basta caricare questo file!!
+ldamodel = pickle.load(open('lda_model.sav', 'rb'))
 
 from pprint import pprint
 #pretty-print (si capisce meglio)
@@ -280,27 +282,79 @@ pprint(ldamodel.print_topics())
 
 #ottengo la rappresentazione in dimesioni latenti di tutti i testi del corpus
 doc_lda = ldamodel[corpus]
-pprint(doc_lda[1])
 
-#vediamo quante dimensioni latenti hanno pesi diversi da zero per ogni articolo
-lunghezze=[]
-for t in doc_lda:
-    lunghezze.append(len(t))
+############CONTENT BASED PROFILES
+#profilo del primo utente
+testi=[]#ci salvo i testi (rappresentati in lda) delle news che l'utente in questione
+    #ha letto
+for i in range(len(doc_lda)):
+    if S_norep[i] in Hist[0]:
+       testi.append(doc_lda[i])
+            
+#separo le tuple per poter fare le medie dei pesi
+dimensioni=[]
+pesi=[]
+for i in range(len(testi)):
+    t=list(zip(*testi[i]))
+    dimensioni.extend(list(t[0]))    
+    pesi.extend(list(t[1]))  
     
-import matplotlib.pyplot as plt
-plt.plot(lunghezze)
-###ne basterebbero 35!
+#devo fare le medie dei pesi corrispondenti alle stesse dimensioni
+#metto iniseme 
+somme=[] #lista di liste di due elementi ciascuna: numero del topic + somma dei 
+#pesi corrispondenti
+b=[]
+for i in range(len(dimensioni)):
+        if dimensioni[i] not in b:
+            b.append(dimensioni[i]) #lista delle dimensioni già viste
+            a=[dimensioni[i], pesi[i]] 
+            somme.append(a)
+        else:
+            for j in range(len(b)):
+                if dimensioni[i]==b[j]:
+                    somme[j][1]+=pesi[i]
+t=0                  
+for s in range(len(somme)):
+    p=somme[s][1]/len(Hist[0]) 
+    somme[s][1]= t
+    t+=p
+      
+                          
+def ContentBasedProfile(Hist_0, doc_lda):
+    #dividere
+    testi=[]#ctesti (rappresentati tramite lda) delle news che l'utente in questione
+    #ha letto
+    for i in range(len(doc_lda)):
+        if S_norep[i] in Hist_0:
+            testi.append(doc_lda[i])
+    dimensioni=[] #lista di dimensioni (riferita a tutte le news salvate in testi)
+    pesi=[] #lista dei pesi corrispondenti
+    for i in range(len(testi)):
+        t=list(zip(*testi[i])) #separo le tuple(dimensioni, peso)
+        dimensioni.extend(list(t[0]))    
+        pesi.extend(list(t[1]))
+    somme=[] #lista di liste di due elementi ciascuna: numero del topic + somma dei 
+    #pesi corrispondenti
+    b=[] #lista delle dimensioni già viste
+    for i in range(len(dimensioni)):
+        if dimensioni[i] not in b:
+            b.append(dimensioni[i]) 
+            a=[dimensioni[i], pesi[i]] 
+            somme.append(a)
+        else:
+            for j in range(len(b)):
+                if dimensioni[i]==b[j]:
+                    somme[j][1]+=pesi[i]
+    for s in range(len(somme)):
+        p=somme[s][1]/len(Hist_0) 
+        somme[s][1]= p
+    return somme
+    
+#applico la funzione a tutti gli user
+u_profile_lda=[]
+for i in tqdm.tqdm(range(len(Hist))):
+    u_profile_lda.append(ContentBasedProfile(Hist[i],doc_lda))
 
-##salvo la rappresentazione in dimensioni latenti in un file csv
-with open("testi_lda.csv", "w") as file:
-    writer=csv.writer(file)
-    for i in range(len(S_norep)):
-        writer.writerow([S_norep[i],  doc_lda[i]])
-
-#apertura del file csv con idnews+rappresentazione  dimensioni latenti
-csv_file = open("testi_lda.csv", encoding="Latin1")
-LDA_OUT = pandas.read_csv(csv_file, sep=",", header=None, names=["ID", "Testo_LDA"])
-csv_file.close()
 
 
 
@@ -312,5 +366,4 @@ csv_file.close()
 
 
 
-csv_file.close()
         
