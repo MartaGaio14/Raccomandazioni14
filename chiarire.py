@@ -87,6 +87,8 @@ with open("testi.csv", "w") as file:
 
 #apertura file testi
 read = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) 
+#read = pandas.read_csv("testi.csv", sep=",", header=None, names=["ID", "Testo"])
+
 print(read.head())
 read.info()
 
@@ -108,11 +110,12 @@ stop_words= set(stopwords.words("english"))
 lettere = list('abcdefghijklmnopqrstuvwxyz')
 numeri = list('0123456789')
 
+
 for i in range(0,len(lettere)):
     stop_words.add(lettere[i])
 for i in range(0,len(numeri)):
     stop_words.add(numeri[i])
-
+stop_words.add("getty")
 #PART OF SPEACH TAGGING
 REM=['CC','CD','DT','EX','IN','LS','MD','PDT','POS','PRP','PSRP$','RB',
      'RBR','RBS','TO','UH','WDT','WP','WPD$','WRB']
@@ -243,7 +246,7 @@ def TF_IDF(texts):
         tfidf_corpus.append(tfidf_doc)
     return tfidf_corpus   
       
-x=TF_IDF(texts)
+doc_tfidf=TF_IDF(texts)
     
     
 ###########################LDA (CON gensim)
@@ -290,21 +293,7 @@ pprint(ldamodel.print_topics())
 doc_lda = ldamodel[corpus]
 
 ############CONTENT BASED PROFILES
-     
-                          
-def ContentBasedProfile(Hist_0, doc_lda):
-    #dividere
-    testi=[]#ctesti (rappresentati tramite lda) delle news che l'utente in questione
-    #ha letto
-    for i in range(len(doc_lda)):
-        if S_norep[i] in Hist_0:
-            testi.append(doc_lda[i])
-    dimensioni=[] #lista di dimensioni (riferita a tutte le news salvate in testi)
-    pesi=[] #lista dei pesi corrispondenti
-    for i in range(len(testi)):
-        t=list(zip(*testi[i])) #separo le tuple(dimensioni, peso)
-        dimensioni.extend(list(t[0]))    
-        pesi.extend(list(t[1]))
+def ContentBasedProfile(Hist_0, dimensioni, pesi):
     somme=[] #lista di liste di due elementi ciascuna: numero del topic + somma dei 
     #pesi corrispondenti
     b=[] #lista delle dimensioni già viste
@@ -321,13 +310,112 @@ def ContentBasedProfile(Hist_0, doc_lda):
         p=somme[s][1]/len(Hist_0) 
         somme[s][1]= p
     return somme
+
+####################CONTENT BASED PROFILE IN RAPPRESENTAZIONE TFIDF
+u_profile_tfidf=[]
+for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
+    testi=[]
+    for j in range(len(doc_tfidf)):
+        if S_norep[j] in Hist[i]:
+            testi.append(doc_tfidf[j])
+    dimensioni=[] #lista di dimensioni (riferita a tutte le news salvate in testi)
+    pesi=[] #lista dei pesi corrispondenti
+    for t in range(len(testi)):
+        dimensioni.extend(testi[][j][0])    
+        pesi.extend(testi[i][j][1])    
+    u_profile_tfidf.append(ContentBasedProfile(Hist[i],dimensioni, pesi))
+
+
+
+###########PROVA SUL PRIMO UTENTE
+testi=[]
+for j in range(len(doc_tfidf)):
+    if S_norep[j] in Hist[0]:
+        testi.append(doc_tfidf[j])
+dimensioni=[] #lista di dimensioni (riferita a tutte le news salvate in testi)
+pesi=[] #lista dei pesi corrispondenti
+for t in tqdm.tqdm(range(len(testi))): #testo t
+    for j in range(len(testi[t])): #riga j del testo t
+        dimensioni.extend(testi[t][j][0])    
+        pesi.extend(testi[t][j][1]) 
+ 
+
+
+
+
+
+
+       
+###################CONTENT BASED PROFILE IN RAPPRESENTAZIONE LDA
     
-#applico la funzione a tutti gli user
+#applico la funzione a tutti gli user 
 u_profile_lda=[]
-for i in tqdm.tqdm(range(len(Hist))):
-    u_profile_lda.append(ContentBasedProfile(Hist[i],doc_lda))
+for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
+    testi=[]
+    for j in range(len(doc_lda)):
+        if S_norep[j] in Hist[i]:
+            testi.append(doc_lda[j])
+    dimensioni=[] #lista di dimensioni (riferita a tutte le news salvate in testi)
+    pesi=[] #lista dei pesi corrispondenti
+    for i in range(len(testi)):
+        t=list(zip(*testi[i])) #separo le tuple(dimensioni, peso)
+        dimensioni.extend(list(t[0]))    
+        pesi.extend(list(t[1]))    
+    u_profile_lda.append(ContentBasedProfile(Hist[i],dimensioni, pesi))
+  
+                          
+###############DATASET DI TEST
+
+#apro il file behaviors dal Test Set(chiamato però TestSet per non essere confuso con l'altro file behaviors)
+testSet = open("behaviors_test.tsv")
+racc = pandas.read_csv(testSet, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1, 3, 4])
+testSet.close()
+
+racc.info(null_counts=True)
+D=racc.dropna()
+D=D.reset_index(drop=True)
+D.info(null_counts=True)
+
+racc.Imp[i]
+#prendo solamente le righe con gli stessi user presi su behavior
+uid_comp=list(comp["UID"])
+#print(uid_comp)
+
+users={}
+users=pandas.DataFrame(users)
+for i in tqdm.tqdm(range(0,len(uid_comp))):
+    a=D.loc[D["UID"] == uid_comp[i]] #prende uid contenuti in comp
+    users=pandas.concat([users, a], ignore_index=True) #nuovo dataset
+print(users.Time.head())
+print(users.head()) #gli users si ripetono perchè fanno più accessi in tempi diversi
+#la history però è la stessa sempre perchè si basa sui dati della quinta settimana
+for i in range(len(users)):
+    i=0
+    p=users.Imp[i]
+    .split(" ")
+    p=p.split("-")
 
 
+
+users=users.drop_duplicates() #elimino le righe duplicate
+users=users.reset_index(drop=True)
+users.info(null_counts=True) #ci rimangono 841 users (i restanti 159 non hanno più letto niente)
+
+print(users)
+#prendo le history da questo dataset e tolgo i documenti già considerati durante il preproccesing
+Hist2=[]
+Storie2=[]
+for t in tqdm.tqdm(range(len(users))):
+    a=users.History[t].split(" ") 
+    Hist2.append(a)
+    Storie2.extend(a)
+
+S_norep2= list(dict.fromkeys(Storie2)) #lista di documenti presi dal dataset users
+
+res = [x for x in S_norep + S_norep2 if x not in S_norep and x in S_norep2]
+len(res)
+res=list(dict.fromkeys(res)) #lista di documenti restanti dal confronto con s_norep
+print(res)
 
 
 
