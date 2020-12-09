@@ -30,7 +30,13 @@ for t in tqdm.tqdm(range(len(comp))):
 
 S_norep = list(dict.fromkeys(Storie))
 
+#rimuoviamo la news che non ha l'url da S_norep e Hist
+S_norep.remove("N113363")
 
+for i in range(len(Hist)):
+    if Hist[i].count("N113363")>0:
+        Hist[i].remove("N113363")
+        
 #dataset con i dati riguardanti gli items
 news_file=open("news.tsv", encoding="Latin1")
 read_news=pandas.read_csv(news_file, sep="\t", header=None, names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 1, 2, 3, 5])
