@@ -312,36 +312,52 @@ def ContentBasedProfile(Hist_0, dimensioni, pesi):
     return somme
 
 ####################CONTENT BASED PROFILE IN RAPPRESENTAZIONE TFIDF
-u_profile_tfidf=[]
+u_profile_tfidf2=[]
 for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
     testi=[]
     for j in range(len(doc_tfidf)):
         if S_norep[j] in Hist[i]:
             testi.append(doc_tfidf[j])
-    dimensioni=[] #lista di dimensioni (riferita a tutte le news salvate in testi)
-    pesi=[] #lista dei pesi corrispondenti
+    diz={}
+    #dimensioni-->lista di dimensioni (riferita a tutte le news salvate in testi)
+    #pesi-->lista dei pesi corrispondenti (i pesi sono le chiavi del dizionario)
     for t in range(len(testi)):
-        dimensioni.extend(testi[][j][0])    
-        pesi.extend(testi[i][j][1])    
-    u_profile_tfidf.append(ContentBasedProfile(Hist[i],dimensioni, pesi))
+        for j in range(len(testi[t])):
+            diz[testi[t][j][1]]=testi[t][j][0]
+    profilo=dict(ContentBasedProfile(Hist[i],list(diz.values()),list(diz.keys())))
+    # if len(profilo)>4000:
+    #     profilo=dict(sorted(profilo.items(), key=lambda item: item[1])[0:4000])
+    u_profile_tfidf2.append(profilo)
+
+#per decidere quante "dimensioni" tenere (4000)
+# lun=[]
+# for i in range(len(u_profile_tfidf2)):
+#     lun.append(len(u_profile_tfidf2[i]))
+
+# import matplotlib.pyplot as plt
+# plt.plot(lun)
+
+
+#salvaimo u_profile_tfidf su file (PROVA NON RIUSCITA)
+with open('objs.pkl', 'wb') as f: 
+    for i in tqdm.tqdm(range(len(u_profile_tfidf))):
+        for j in range(len(u_profile_tfidf[i])):
+            pickle.dump(str(u_profile_tfidf[i][j]), f)
+upro=[]
+with open('objs.pkl', "rb") as f:  # Python 3: open(..., 'rb')
+    upro=pickle.load(f)      
 
 
 
-###########PROVA SUL PRIMO UTENTE
-testi=[]
-for j in range(len(doc_tfidf)):
-    if S_norep[j] in Hist[0]:
-        testi.append(doc_tfidf[j])
-dimensioni=[] #lista di dimensioni (riferita a tutte le news salvate in testi)
-pesi=[] #lista dei pesi corrispondenti
-for t in tqdm.tqdm(range(len(testi))): #testo t
-    for j in range(len(testi[t])): #riga j del testo t
-        dimensioni.extend(testi[t][j][0])    
-        pesi.extend(testi[t][j][1]) 
- 
 
-
-
+#########prova salvo nel file di testo (ALTRA PROVA NON RIUSCITA)
+with open("prova.csv", "wb") as file:
+     writer=csv.DictWriter(file,fieldnames=)
+     for i in tqdm.tqdm(range(0, len(u_profile_tfidf2))):
+         for j in range(len(u_profile_tfidf2[i])):
+             coppie=list(u_profile_tfidf2[i].items())
+             writer.writerow(list(coppie[j])) 
+         writer.writerow("\t")
 
 
 
