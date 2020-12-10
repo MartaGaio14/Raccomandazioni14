@@ -7,6 +7,7 @@ import csv
 import tqdm
 import re
 import numpy as np
+from numpy import linalg as LA
 
 righe=1000
 #dataset con i comportamenti degli users
@@ -243,7 +244,7 @@ def TF_IDF(texts):
             tf=tot_doc[j][k[i]]/max_f
             idf=np.log10(N/n_i[k[i]]) #n_i[k[i]] n documenti che contengono termine i
             tfidf_doc.append([k[i], tf*idf])
-        tfidf_corpus.append(tfidf_doc)
+        tfidf_corpus.append(dict(tfidf_doc))
     return tfidf_corpus   
       
 doc_tfidf=TF_IDF(texts)
@@ -291,6 +292,11 @@ pprint(ldamodel.print_topics())
 
 #ottengo la rappresentazione in dimesioni latenti di tutti i testi del corpus
 doc_lda = ldamodel[corpus]
+lda_dict=[] #lista di dizionari
+for i in range(len(doc_lda)):
+    lda_dict.append(dict(doc_lda[i]))
+    
+     
 
 ############CONTENT BASED PROFILES
 def ContentBasedProfile(Hist_0, dimensioni, pesi):
@@ -309,7 +315,7 @@ def ContentBasedProfile(Hist_0, dimensioni, pesi):
     for s in range(len(somme)):
         p=somme[s][1]/len(Hist_0) 
         somme[s][1]= p
-    return somme
+    return dict(somme)
 
 ####################CONTENT BASED PROFILE IN RAPPRESENTAZIONE TFIDF
 u_profile_tfidf2=[]
@@ -360,13 +366,15 @@ with open("prova.csv", "wb") as file:
          writer.writerow("\t")
 
 
+ 
+
 
        
 ###################CONTENT BASED PROFILE IN RAPPRESENTAZIONE LDA
     
 #applico la funzione a tutti gli user 
 u_profile_lda=[]
-for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
+for i in tqdm.tqdm(range(len(Hist))): #i gira negli user   
     testi=[]
     for j in range(len(doc_lda)):
         if S_norep[j] in Hist[i]:
@@ -407,8 +415,7 @@ print(users.head()) #gli users si ripetono perchè fanno più accessi in tempi d
 #la history però è la stessa sempre perchè si basa sui dati della quinta settimana
 for i in range(len(users)):
     i=0
-    p=users.Imp[i]
-    .split(" ")
+    p=users.Imp[i].split(" ")
     p=p.split("-")
 
 
@@ -434,9 +441,27 @@ res=list(dict.fromkeys(res)) #lista di documenti restanti dal confronto con s_no
 print(res)
 
 
+#crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave) 
+def compara(dictU, dictA):
+    utente=[]
+    articolo=[]
+    for keyU in dictU:
+        for keyA in dictA:
+            if keyU == keyA:
+                utente.append(dictU[keyA])
+                articolo.append(dictA[keyA])
+    return utente,articolo
+            
+def CosDist(u, v):
+    dist = np.dot(u, v) / (LA.norm(u) * LA.norm(v))
+    return dist
 
+def similarità(dictU, dictA):
+    (a,b)=compara(dictU, dictA)
+    return CosDist(a,b)
 
-    
+(a,b)=compare()
+similarità(u_profile_lda[1], lda_dict[4353])
     
 
 
