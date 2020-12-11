@@ -50,7 +50,7 @@ for i in range(len(Hist)):
     n_training.append(temp_train)
     n_test.append(temp_test)
         
- 
+########################################DATASET DI TRAINING######################### 
 Storie_train=[] #lista di tutte le news lette
 for i in range(len(n_training)):
     Storie_train.extend(n_training[i])
@@ -58,18 +58,23 @@ for i in range(len(n_training)):
 S_norep = list(dict.fromkeys(Storie_train))
 
 S_norep.remove("N113363")
+
 for i in range(len(Hist)):
     if Hist[i].count("N113363")>0:
         Hist[i].remove("N113363")     
-    
-    
+# for i in range(len(Hist)):
+#     if Hist[i].count("N14205")>0:#rimuovo anche questo che è nel testing set
+#         Hist[i].remove("N14205")     
+#  for i in range(len(Hist)):
+#     if Hist[i].count("N51229")>0:#rimuovo anche questo che è nel testing set
+#         Hist[i].remove("N51229")   
   
 #dataset con i dati riguardanti gli items
 news_file=open("news_test.tsv", encoding="Latin1")
 read_news=pandas.read_csv(news_file, sep="\t", header=None, names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 5])
 read_news.info(null_counts=True)
 news=pandas.DataFrame(read_news)
-print(news)
+#print(news)
 news_file.close()
 
 news.loc[news["ID"] == "N113363"] #rimuove articolo senza url
@@ -81,7 +86,7 @@ for i in tqdm.tqdm(range(0,len(S_norep))):
     a=news.loc[news["ID"] == S_norep[i]] #prende articoli contenuti in Snorep
     news2=pandas.concat([news2, a], ignore_index=True) #nuovo dataset
 
-news2.info()
+#news2.info()
 
 
 
@@ -224,4 +229,28 @@ wordcloud = WordCloud(width = 3000, height = 2000, random_state=1,
 plot_cloud(wordcloud)
 
 
+
+#################################DATASET DI TESTING#################################
+
+Storie_test=[] #lista di tutte le news lette
+for i in range(len(n_training)):
+    Storie_test.extend(n_training[i])
+
+#lista delle 11733 news per il test set            
+S_norep2 = list(dict.fromkeys(Storie_test))
+
+#dataset con i dati riguardanti gli items
+news3={}
+news3=pandas.DataFrame(news3)
+for i in tqdm.tqdm(range(0,len(S_norep2))): 
+    a=news.loc[news["ID"] == S_norep2[i]] #prende articoli contenuti in Snorep
+    news3=pandas.concat([news3, a], ignore_index=True) #nuovo dataset
+#estraiamo i testi e li salviamo su file
+with open("testi_test.csv", "w") as file:
+     writer=csv.writer(file)
+     for i in tqdm.tqdm(range(0, len(news3))):
+         url=news3.URL[i]
+         html = urllib.request.urlopen(url)
+         testo=vattene(html)
+         writer.writerow([news3.ID[i], testo]) 
 
