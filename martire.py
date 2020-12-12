@@ -36,8 +36,20 @@ for i in tqdm.tqdm(range(len(GrandeSet))):
             Id_utente.append(GrandeSet.UID[i])
         break
     
-
-
+    
+#rimuovo news senza url che è nel training set    
+for i in range(len(Hist)):
+    if Hist[i].count("N113363")>0:
+        Hist[i].remove("N113363")
+#rimuovo anche questo che è nel test set
+for i in range(len(Hist)):
+    if Hist[i].count("N110434")>0: 
+        Hist[i].remove("N110434")
+#rimuovo la news che non è presente nel dataset delle news
+for i in range(len(Hist)):
+    if Hist[i].count("N89741")>0: 
+        Hist[i].remove("N89741")
+        
 #divisione training e test set
 n_test=[] 
 n_training=[]
@@ -61,30 +73,15 @@ for i in range(len(n_training)):
             
 S_norep = list(dict.fromkeys(Storie_train))
 
-S_norep.remove("N113363")
-
-for i in range(len(Hist)):
-    if Hist[i].count("N113363")>0:
-        Hist[i].remove("N113363")
-#rimuovo anche questo che è nel testing set
-for i in range(len(Hist)):
-    if Hist[i].count("N110434")>0: 
-        Hist[i].remove("N110434")     
-
-
   
 #dataset con i dati riguardanti gli items
 news_file=open("news_test.tsv", encoding="Latin1")
 read_news=pandas.read_csv(news_file, sep="\t", header=None, names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"], usecols=[0, 5])
+read_news=read_news.dropna()
 read_news.info(null_counts=True)
 news=pandas.DataFrame(read_news)
 #print(news)
 news_file.close()
-
-news.loc[news["ID"] == "N113363"] #rimuove articolo senza url
-news.loc[news["ID"] == "N110434"] 
-news=news.drop(46027)
-news=news.drop(4694)
 
 news2={}
 news2=pandas.DataFrame(news2)
@@ -125,7 +122,6 @@ with open("testi_train.csv", "w") as file:
 #apertura file testi
 testi_train = pandas.read_csv("testi_train.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) 
 testi_train.info()
-
 
 
 ########PREPROCESSING DEI TESTI
@@ -244,7 +240,7 @@ def TF_IDF(texts):
     n_i=CountFreq(allwords) #numero di documenti che contengono un termine 
     N=len(tot_doc) #numero di documenti nel corpus
     tfidf_corpus = []
-    for j in tqdm.tqdm(range(0, len(tot_doc))):
+    for j in tqdm.tqdm(range(0,N)):
         k=list(tot_doc[j].keys())
         tfidf_doc=[]
         for i in range(0, len(tot_doc[j])):
@@ -252,16 +248,19 @@ def TF_IDF(texts):
             tf=tot_doc[j][k[i]]/max_f #numero di occorrenze del termine i nel documento j/max_f
             idf=np.log10(N/n_i[k[i]]) #n_i[k[i]] n documenti che contengono termine i
             tfidf_doc.append([k[i], tf*idf])
-        tfidf_corpus.append(dict(tfidf_doc))
+        tfidf_doc=dict(tfidf_doc)
+        if len(tfidf_doc)>1000:
+            tfidf_corpus.append(dict(sorted(tfidf_doc.items(), key=lambda item: item[1])[0:1000]))
+        else:
+            tfidf_corpus.append(tfidf_doc)
     return tfidf_corpus   
       
 doc_tfidf=TF_IDF(texts)
-    
-    
+
 ############CONTENT BASED PROFILES
 def ContentBasedProfile(Hist_0, dimensioni, pesi):
-    somme=[] #lista di liste di due elementi ciascuna: numero del topic + somma dei 
-    #pesi corrispondenti
+    #lista di liste di due elementi ciascuna: numero del topic+somma dei pesi corrispondenti
+    somme=[] 
     b=[] #lista delle dimensioni già viste
     for i in range(len(dimensioni)):
         if dimensioni[i] not in b:
@@ -271,13 +270,16 @@ def ContentBasedProfile(Hist_0, dimensioni, pesi):
         else:
             for j in range(len(b)):
                 if dimensioni[i]==b[j]:
-                    somme[j][1]+=pesi[i]
+                    somme[j][1]+=pesi[i] #somma al peso corrispondente alla dimensione
     for s in range(len(somme)):
+         #divido pesi relativi a ciascuna parola per il n di news lette da ciascun utente
         p=somme[s][1]/len(Hist_0) 
         somme[s][1]= p
     return dict(somme)
 
+
 ####################CONTENT BASED PROFILE IN RAPPRESENTAZIONE TFIDF
+
 u_profile_tfidf=[]#lista di dizionari, uno per ogni utente
 for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
     testi=[]#lista di dizionari, ogni dizionario è una news in tfidf letta dall'utente
@@ -294,9 +296,10 @@ for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
         for j in range(len(testi[t])):
             diz[dimensioni[j]]=pesi[j]
     profilo=dict(ContentBasedProfile(Hist[i],list(diz.keys()),list(diz.values())))
-    # if len(profilo)>4000:
-    #     profilo=dict(sorted(profilo.items(), key=lambda item: item[1])[0:4000])
+    if len(profilo)>1000:
+        profilo=dict(sorted(profilo.items(), key=lambda item: item[1])[0:1000])
     u_profile_tfidf.append(profilo)
+    
     
 ###################CONTENT BASED PROFILE IN RAPPRESENTAZIONE LDA
     
@@ -314,8 +317,10 @@ for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
         dimensioni.extend(list(t[0]))    
         pesi.extend(list(t[1]))    
     u_profile_lda.append(ContentBasedProfile(Hist[i],dimensioni, pesi))
+    #creata una lista di dizionari
+ 
     
-
+#il modello è stato allenato
 
 
 
@@ -327,7 +332,7 @@ for i in range(len(n_test)):
 
 #lista delle 11733 news per il test set            
 S_norep2 = list(dict.fromkeys(Storie_test))
-S_norep2.remove("N110434")#articolo senza url
+
 #dataset con i dati riguardanti gli items
 news3={}
 news3=pandas.DataFrame(news3)
@@ -356,7 +361,6 @@ for text in texts2:
 processed_corpus2 = [[token for token in text if frequency[token] > 1] 
                     for text in texts2]
 dictionary2=corpora.Dictionary(processed_corpus2) #associa a termini in processed_corpus un nuovo codice 
-
 corpus2=[dictionary2.doc2bow(text) for text in processed_corpus2] #dizionario codice parola e frequenza
 doc2_lda = ldamodel[corpus2]
 lda_dict2=[] #lista di dizionari
@@ -389,15 +393,15 @@ def similarità(dictU, dictA):
 
 with open("risultati.csv", "w") as file:
      writer=csv.writer(file)
-     for i in tqdm.tqdm(range(len(u_profile_lda))): #gira sugli utenti
+     for i in tqdm.tqdm(range(len(u_profile_lda))): #gira sui 1000 utenti
          for j in range(len(lda_dict2)): #gira sulle nuove news
              u=Id_utente[i]
              n=S_norep2[j]
-             #s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
              s_lda=similarità(u_profile_lda[i], lda_dict2[j])
-             writer.writerow([u,n,s_lda])
+             s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
+             writer.writerow([u,n,s_lda, s_tfidf])
              
-risultati=pandas.read_csv("risultati.csv", names=["UID","NID", "LDA"], header=None, error_bad_lines=False)    
+risultati=pandas.read_csv("risultati.csv", names=["UID","NID", "LDA", "TFIDF"], header=None, error_bad_lines=False)    
     
 
     
