@@ -1,5 +1,5 @@
 #funzioni per calcolare la similarità
-import unmpy as np
+import numpy as np
 from numpy import linalg as LA
 
 def compara(dictU, dictA):
@@ -12,10 +12,10 @@ def compara(dictU, dictA):
                 articolo.append(dictA[keyA])
     return utente,articolo
             
-def CosDist(u, v):
+def CosSim(u, v):
     dist = np.dot(u, v) / (LA.norm(u) * LA.norm(v))
     return dist
 
 def similarità(dictU, dictA):
     (a,b)=compara(dictU, dictA)
-    return CosDist(a,b)
+    return CosSim(a,b)
