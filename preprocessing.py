@@ -1,3 +1,4 @@
+
 ########PREPROCESSING DEI TESTI
 #RIMOZIONE DELLE STOPWORDS   
 import nltk
@@ -6,6 +7,8 @@ from nltk.stem import PorterStemmer
 from nltk.stem import LancasterStemmer
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+import numpy as np
+import tqdm
 
 stop_words= set(stopwords.words("english"))
     
@@ -85,7 +88,7 @@ def plot_cloud(wordcloud):
 
 # Generate word cloud
 
-stringa_text=str(prova[9])
+stringa_text=str(texts[0])
 
 out = stringa_text.replace("'","")
 out1=out.replace(",","")
