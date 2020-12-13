@@ -53,7 +53,7 @@ def utenti_tfidf(Hist,doc_tfidf, S_norep):
     
 def utenti_lda(Hist, doc_lda, S_norep):
     u_profile_lda=[]
-    for i in tqdm.tqdm(range(len(Hist))): #i gira negli user   
+    for i in tqdm.tqdm(range(len(Hist))): #i gira negli user 
         testi=[]
         for j in range(len(doc_lda)):
             if S_norep[j] in Hist[i]:
