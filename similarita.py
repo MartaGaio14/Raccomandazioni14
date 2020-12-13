@@ -1,4 +1,6 @@
 #funzioni per calcolare la similarità
+import unmpy as np
+from numpy import linalg as LA
 
 def compara(dictU, dictA):
     utente=[]
