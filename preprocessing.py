@@ -78,6 +78,7 @@ def preprocessing(testi_file):
     return texts
 
 ###WORDCLOUD per controllare visivamente il preprocessing
+    
 def plot_cloud(wordcloud):  
     # Set figure size
     plt.figure(figsize=(40, 30))
@@ -87,15 +88,13 @@ def plot_cloud(wordcloud):
     plt.axis("off");
 
 # Generate word cloud
-
-stringa_text=str(texts[0])
-
-out = stringa_text.replace("'","")
-out1=out.replace(",","")
-out2=out1.replace("]","")
-out3=out2.replace("[","")
-
-wordcloud = WordCloud(width = 3000, height = 2000, random_state=1, 
+def disegna(testo):
+    stringa_text=str(testo)
+    out = stringa_text.replace("'","")
+    out1=out.replace(",","")
+    out2=out1.replace("]","")
+    out3=out2.replace("[","")
+    wordcloud = WordCloud(width = 3000, height = 2000, random_state=1, 
                       collocations=False).generate(out3)
-# Plot
-plot_cloud(wordcloud)
+    # Plot
+    plot_cloud(wordcloud)
