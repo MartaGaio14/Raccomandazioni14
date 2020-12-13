@@ -1,12 +1,8 @@
 import urllib
 from bs4 import BeautifulSoup
 import pandas
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem.wordnet import WordNetLemmatizer
 import csv
 import tqdm
-import re
 import numpy as np
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
@@ -14,6 +10,10 @@ from collections import defaultdict
 from gensim import corpora, models
 import pickle
 
+#importiamo i moduli da noi creati
+from preprocessing import *
+from tfidf import *
+from similarita import similarità
 
 
 #apro il file riguardante gli utenti (Test Set)
@@ -37,15 +37,14 @@ for i in tqdm.tqdm(range(len(GrandeSet))):
         break
     
     
-#rimuovo news senza url che è nel training set    
+#eliminiamo le news poblematiche
+        #le prime due non hanno l'url e l'ultima non è nel dataset delle news
 for i in range(len(Hist)):
     if Hist[i].count("N113363")>0:
         Hist[i].remove("N113363")
-#rimuovo anche questo che è nel test set
 for i in range(len(Hist)):
     if Hist[i].count("N110434")>0: 
         Hist[i].remove("N110434")
-#rimuovo la news che non è presente nel dataset delle news
 for i in range(len(Hist)):
     if Hist[i].count("N89741")>0: 
         Hist[i].remove("N89741")
@@ -124,74 +123,8 @@ testi_train = pandas.read_csv("testi_train.csv", names=["ID", "Testo"], header=N
 testi_train.info()
 
 
-########PREPROCESSING DEI TESTI
-
-#RIMOZIONE DELLE STOPWORDS   
-
-#nltk.download('stopwords')
-stop_words= set(stopwords.words("english"))
-    
-lettere = list('abcdefghijklmnopqrstuvwxyz')
-numeri = list('0123456789')
-
-
-for i in range(0,len(lettere)):
-    stop_words.add(lettere[i])
-for i in range(0,len(numeri)):
-    stop_words.add(numeri[i])
-stop_words.add("getty")
-
-#PART OF SPEACH TAGGING
-REM=['CC','CD','DT','EX','IN','LS','MD','PDT','POS','PRP','PSRP$','RB',
-     'RBR','RBS','TO','UH','WDT','WP','WPD$','WRB']
-
-#la funzione restituisce un vettore lungo come la lista di tuple con 0 se la tupla è da tenere e 1 
-#se è da togliere
-def eliminare(tagged_words1):
-    togli=np.zeros(len(tagged_words1))
-    res = list(zip(*tagged_words1)) #zippiamo la lista di tuple
-    res=res[1] #prendiamo solo i tag
-    for i in np.arange(len(tagged_words1)):  
-        #il ciclo prende nota di quali sono le parole da eliminare 
-        tup=res[i]
-        for j in REM:
-            if tup==j:
-                togli[i]=1
-    return togli
-
-#LEMMING
-from nltk.stem.wordnet import WordNetLemmatizer
-lem = WordNetLemmatizer()
-
-def preprocessing(testi_file):
-    parole=[] #parole estratte dai testi, lista di lista di liste di stringhe
-    texts=[]
-    for i in tqdm.tqdm(range(len(testi_file))):
-        parole.append(testi_file.Testo[i].split(" "))
-        minuscolo=[] #tutto in minuscolo
-        for j in range(0,len(parole[i])):
-            minuscolo.append(parole[i][j].lower())
-        #rimozione delle stopwords
-        words_nostop=[word for word in minuscolo if word not in stop_words]
-        #rimozione della punteggiatura
-        words_nopunct= [word for word in words_nostop if word.isalnum()] 
-        #part of speach tagging
-        tagged_words=nltk.pos_tag(words_nopunct) 
-        togli=eliminare(tagged_words)
-        togli= np.array(togli, dtype=int)
-        finali=list(np.array(words_nopunct)[togli==0])
-        #lemming
-        lemmed_words=[]
-        for w in finali:
-            lemmed_words.append(lem.lemmatize(w,"v"))
-        finali=lemmed_words
-        #salvo le parole rimaste per ogni documento in una lista di liste
-        texts.append(finali)
-    return texts
-
+## preprocessing delle news di training
 texts=preprocessing(testi_train)    
-
-#############################FINE PREPROCESSING DEI DATI
 
 
 ###########################LDA (CON gensim)
@@ -205,7 +138,7 @@ processed_corpus = [[token for token in text if frequency[token] > 1]
 dictionary=corpora.Dictionary(processed_corpus)
 
 corpus=[dictionary.doc2bow(text) for text in processed_corpus]
-filename = 'lda_model.sav'
+filename = 'lda_model_porter.sav'
 ldamodel=models.ldamodel.LdaModel(corpus, num_topics=100, id2word=dictionary, passes=20)
 pickle.dump(ldamodel, open(filename, 'wb')) #per salvare il modello su file
 
@@ -218,46 +151,14 @@ lda_dict=[] #lista di dizionari
 for i in tqdm.tqdm(range(len(doc_lda))):
     lda_dict.append(dict(doc_lda[i])) #topic per ogni articolo
     
-######## TF.IDF
+######## TF.IDF sulle 
 
-def CountFreq(word_list):
-    word_dict={} 
-    for word in word_list:
-        if word not in word_dict:
-            word_dict[word]=1
-        else:
-            word_dict[word]+=1
-    return word_dict  
 
-def TF_IDF(texts):
-    tot_doc=[] #lista di dizionari freq per ogni documento
-    allwords=[]#lista parole singole per ogni documento 
-    for z in range(0, len(texts)): 
-        b=CountFreq(texts[z])
-        tot_doc.append(b) 
-        norep=np.unique(texts[z])
-        allwords.extend(norep)    
-    n_i=CountFreq(allwords) #numero di documenti che contengono un termine 
-    N=len(tot_doc) #numero di documenti nel corpus
-    tfidf_corpus = []
-    for j in tqdm.tqdm(range(0,N)):
-        k=list(tot_doc[j].keys())
-        tfidf_doc=[]
-        for i in range(0, len(tot_doc[j])):
-            max_f=max(list(tot_doc[j].values())) #parola con massima freq nel documento j
-            tf=tot_doc[j][k[i]]/max_f #numero di occorrenze del termine i nel documento j/max_f
-            idf=np.log10(N/n_i[k[i]]) #n_i[k[i]] n documenti che contengono termine i
-            tfidf_doc.append([k[i], tf*idf])
-        tfidf_doc=dict(tfidf_doc)
-        if len(tfidf_doc)>1000:
-            tfidf_corpus.append(dict(sorted(tfidf_doc.items(), key=lambda item: item[1])[0:1000]))
-        else:
-            tfidf_corpus.append(tfidf_doc)
-    return tfidf_corpus   
       
 doc_tfidf=TF_IDF(texts)
 
 ############CONTENT BASED PROFILES
+
 def ContentBasedProfile(Hist_0, dimensioni, pesi):
     #lista di liste di due elementi ciascuna: numero del topic+somma dei pesi corrispondenti
     somme=[] 
@@ -320,9 +221,6 @@ for i in tqdm.tqdm(range(len(Hist))): #i gira negli user
     #creata una lista di dizionari
  
     
-#il modello è stato allenato
-
-
 
 #################################DATASET DI TESTING#################################
 
@@ -372,46 +270,30 @@ doc2_tfidf=TF_IDF(texts2) # TF-IDF
          
 ##########RACCOMANDAZIONI
 #crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave) 
-def compara(dictU, dictA):
-    utente=[]
-    articolo=[]
-    for keyU in dictU:
-        for keyA in dictA:
-            if keyU == keyA:
-                utente.append(dictU[keyA])
-                articolo.append(dictA[keyA])
-    return utente,articolo
-            
-def CosDist(u, v):
-    dist = np.dot(u, v) / (LA.norm(u) * LA.norm(v))
-    return dist
-
-def similarità(dictU, dictA):
-    (a,b)=compara(dictU, dictA)
-    return CosDist(a,b)
 
 
-with open("risultati.csv", "w") as file:
+with open("risultati_tf.csv", "w") as file:
      writer=csv.writer(file)
-     for i in tqdm.tqdm(range(len(u_profile_lda))): #gira sui 1000 utenti
+     for i in tqdm.tqdm(range(500,len(u_profile_lda))): #gira sui 1000 utenti
          for j in range(len(lda_dict2)): #gira sulle nuove news
              u=Id_utente[i]
              n=S_norep2[j]
              s_lda=similarità(u_profile_lda[i], lda_dict2[j])
              s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
-             writer.writerow([u,n,s_lda, s_tfidf])
+             writer.writerow([u,n, s_lda, s_tfidf])
              
-risultati=pandas.read_csv("risultati.csv", names=["UID","NID", "LDA", "TFIDF"], header=None, error_bad_lines=False)    
+risultati=pandas.read_csv("risultati_lda.csv", names=["UID","NID", "LDA"], header=None, error_bad_lines=False)    
     
 
     
 ##########CURVA ROC
-N=10
+N=100
 
 precision=recall=fp_rate=0
+tpli=[]
 inizio=0
 fine=len(S_norep2)
-for u in tqdm.tqdm(range(len(n_test))):
+for u in tqdm.tqdm(range(len(n_test[0:100]))):
     ut=risultati[inizio:fine]
     top_lda=ut.sort_values(by=['LDA'], ascending=False)[0:N]
     top_lda=top_lda.reset_index(drop=True)
@@ -419,15 +301,15 @@ for u in tqdm.tqdm(range(len(n_test))):
     for i in range(len(top_lda)): 
         if top_lda.NID[i] in n_test[u]:
             tp+=1 #true positive
+    tpli.append(tp)
     fp=N-tp #false positive
     fn=len(n_test[u])-tp #false negative
     tn=len(S_norep2)-len(n_test[u])-fp #true negative 
     precision+=tp/(tp+fp)
     recall+=tp/(tp+fn)
     fp_rate+=fp/(fp+tn)
-    inizio=fine+1
-    fine=inizio+len(S_norep2)
+    inizio=(u+1)*len(S_norep2)+1
+    fine=(u+2)*len(S_norep2)
 
 
-def ROC
 
