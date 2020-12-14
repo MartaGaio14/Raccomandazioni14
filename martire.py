@@ -11,6 +11,7 @@ import pickle
 #importiamo i moduli da noi creati
 from preprocessing import *
 from tfidf import *
+from profili_utenti import utenti_tfidf_par
 from profili_utenti import utenti_tfidf
 from profili_utenti import utenti_lda
 from similarita import similarità
@@ -149,13 +150,14 @@ testi_test = pandas.read_csv("testi_test.csv", names=["ID", "Testo"], header=Non
 
 
 
-############################# Lavoriamo sul DATASET DI TRAINING
+############################# Lavoriamo sul DATASET DI TRAINING##################
 
 ######## Preprocessing dei testi delle news di training
 
 texts=preprocessing(testi_train)    
 
-
+textspar=preprocessing_par(testi_train)
+list(testi_train.Testo)
 ######## Rappresentazione in LDA per le news di training
 
 ##creazione del corpus
@@ -195,9 +197,15 @@ doc_tfidf=TF_IDF(texts)
 #in rappresentazione lda
 u_profile_lda=utenti_lda(Hist,doc_lda, S_norep) 
 #in rappresentazione tfidf
-u_profile_tfidf=utenti_tfidf(Hist,doc_tfidf, S_norep)
-  
-############################# Lavoriamo sul DATASET DI TEST
+u_profile_tfidf=utenti_tfidf_par(Hist,doc_tfidf, S_norep)
+
+
+
+
+
+u_profile_tfidf2[999]
+len(u_profile_tfidf)
+############################# Lavoriamo sul DATASET DI TEST#####################
 
 ######## Preprocessing dei testi delle news di test
 
@@ -234,7 +242,8 @@ doc2_tfidf=TF_IDF(texts2)
 
 
          
-############################# RACCOMANDAZIONI
+############################# RACCOMANDAZIONI#####################################
+
 #crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave) 
 
 with open("risultati.csv", "w") as file:
@@ -244,22 +253,22 @@ with open("risultati.csv", "w") as file:
          for j in range(len(lda_dict2)): #gira sulle nuove news
              u=Id_utente[i]
              n=S_norep2[j]
-             s_lda=similarità(u_profile_lda[i], lda_dict2[j])
-             #s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
+             #s_lda=similarità(u_profile_lda[i], lda_dict2[j])
+             s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
              writer.writerow([u,n, s_lda])
              
-risultati=pandas.read_csv("risultati_lda.csv", names=["UID","NID", "LDA"], header=None, error_bad_lines=False)    
+risultati=pandas.read_csv("risultati.csv", names=["UID","NID", "LDA"], header=None, error_bad_lines=False)    
     
 
 
 ##########PRECISIONE RECALL E FALSE POSITIVE RATE
-N=100
+N=10
 
 precision=recall=fp_rate=0
 tpli=[]
 inizio=0
 fine=len(S_norep2)
-for u in tqdm.tqdm(range(len(n_test[0:100]))):
+for u in tqdm.tqdm(range(len(n_test))):
     ut=risultati[inizio:fine]
     top_lda=ut.sort_values(by=['LDA'], ascending=False)[0:N]
     top_lda=top_lda.reset_index(drop=True)
