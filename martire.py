@@ -7,6 +7,7 @@ import numpy as np
 from collections import defaultdict
 from gensim import corpora, models
 import pickle
+import time
 
 #importiamo i moduli da noi creati
 from preprocessing import *
@@ -154,10 +155,17 @@ testi_test = pandas.read_csv("testi_test.csv", names=["ID", "Testo"], header=Non
 
 ######## Preprocessing dei testi delle news di training
 
-texts=preprocessing(testi_train)    
+inizio=time.time()
+N_CPU = mp.cpu_count()
+pool=mp.Pool(processes=N_CPU)
+texts=pool.map(preprocessing, list(testi_train.Testo))
+pool.close()
+pool.join()
+fine=time.time()
+print(fine-inizio)
 
-textspar=preprocessing_par(testi_train)
-list(testi_train.Testo)
+
+
 ######## Rappresentazione in LDA per le news di training
 
 ##creazione del corpus
@@ -198,7 +206,6 @@ doc_tfidf=TF_IDF(texts)
 u_profile_lda=utenti_lda(Hist,doc_lda, S_norep) 
 #in rappresentazione tfidf
 u_profile_tfidf=utenti_tfidf_par(Hist,doc_tfidf, S_norep)
-
 
 
 

@@ -1,4 +1,3 @@
-
 ########PREPROCESSING DEI TESTI
 #RIMOZIONE DELLE STOPWORDS   
 import nltk
@@ -6,13 +5,12 @@ from nltk.corpus import stopwords
 #from nltk.stem import PorterStemmer
 #from nltk.stem import LancasterStemmer
 from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.stem import SnowballStemmer
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import numpy as np
 import tqdm
 import multiprocessing as mp
-import threading
-import string
 
 stop_words= set(stopwords.words("english"))
     
@@ -27,6 +25,7 @@ stop_words.add("getty")
 stop_words.add("slides")
 verbi_comuni="ask become begin call come could feel find get give go hear help keep know leave let like live look make may mean might move need play put run say see seem show start take talk tell think try turn use want work would said got made went gone knew known took token saw seen came thought gave givenfound told felt left"
 verbi_comuni=verbi_comuni.split(" ")
+
 
 for i in range(len(verbi_comuni)):
     stop_words.add(verbi_comuni[i])
@@ -52,44 +51,12 @@ def eliminare(tagged_words1):
 #STEMMING
 #ps = PorterStemmer() 
 #ps=LancasterStemmer()
-
+stemmer = SnowballStemmer("english")
 ##LEMMING:
-lem = WordNetLemmatizer()
-
-def preprocessing(testi_file):
-    #testi_file=testi_train
-    parole=[] #parole estratte dai testi, lista di lista di liste di stringhe
-    texts=[]
-    for i in tqdm.tqdm(range(len(testi_file))):
-        parole.append(testi_file.Testo[i].split(" "))
-        minuscolo=[] #tutto in minuscolo
-        for j in range(0,len(parole[i])):
-            minuscolo.append(parole[i][j].lower())
-        #rimozione delle stopwords
-        words_nostop=[word for word in minuscolo if word not in stop_words]
-        #rimozione della punteggiatura
-        words_nopunct= [word for word in words_nostop if word.isalnum()] 
-        #part of speach tagging
-        tagged_words=nltk.pos_tag(words_nopunct) 
-        togli=eliminare(tagged_words)
-        togli= np.array(togli, dtype=int)
-        finali=list(np.array(words_nopunct)[togli==0])
-        #lemming
-        lemmed_words=[]
-        for w in finali:
-            lemmed_words.append(lem.lemmatize(w,"v"))
-        finali=lemmed_words
-        #salvo le parole rimaste per ogni documento in una lista di liste
-        texts.append(finali)
-    return texts
-import time
-inizio=time.time()
-p=preprocessing(testi_train)
-fine=time.time()
-print(fine-inizio)
+#lem = WordNetLemmatizer()
 
 #un_testo=testi_file.Testo[i]
-def preprocessing2(un_testo):
+def preprocessing(un_testo):
     #testi_file=testi_train
     #un_testo=testi_train.Testo[0]
     parole=un_testo.split(" ")
@@ -105,45 +72,17 @@ def preprocessing2(un_testo):
     togli=eliminare(tagged_words)
     togli= np.array(togli, dtype=int)
     finali=list(np.array(words_nopunct)[togli==0])
-    #lemming
-    lemmed_words=[]
+    #stemming
+    stemmed_words=[]
     for w in finali:
-        lemmed_words.append(lem.lemmatize(w,"v"))
-    finali=lemmed_words
+        stemmed_words.append(stemmer.stem(w))
+    finali=stemmed_words
+    #lemming
+    # lemmed_words=[]
+    # for w in finali:
+    #     lemmed_words.append(lem.lemmatize(w,"v"))
+    # finali=lemmed_words
     return finali
-
- #MULTITHREADING 
-##ATTENTA: METTI LA CODA in preprocessing2 per fare multithreading    
-# def preprocessing_par(tutti_testi):
-#     coda = mp.Queue()
-#     threads = [mp.Process(target=preprocessing2, args=(un_testo,), 
-#         kwargs={"coda": coda}) 
-#                for un_testo in tqdm.tqdm(list(tutti_testi.Testo))]   
-#     for t in threads:
-#         t.start()
-#     texts=[coda.get(block=False) for t in hey]
-#     for t in threads:
-#         t.join() # blocca il MainThread finché t non è completato
-#     return texts
-#t=preprocessing_par(testi_train)
-
-
-#MULTIPROCESSING
-marta = list(testi_train.Testo[0:10])
-
-N_CPU = mp.cpu_count()
-pool=mp.Pool(processes=N_CPU)
-texts=pool.map(preprocessing2, marta)
-pool.close()
-pool.join()
-
-
-
-
-
-
-
-
 
 
 
