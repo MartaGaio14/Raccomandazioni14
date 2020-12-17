@@ -32,14 +32,13 @@ def TF_IDF(texts):
             idf=np.log10(N/n_i[k[i]]) #n_i[k[i]] n documenti che contengono termine i
             tfidf_doc.append([k[i], tf*idf])
         tfidf_doc=dict(tfidf_doc)
-        if len(tfidf_doc)>1000:
-            tfidf_corpus.append(dict(sorted(tfidf_doc.items(), key=lambda item: item[1], reverse=True)[0:1000]))
+        if len(tfidf_doc)>750:
+            tfidf_corpus.append(dict(sorted(tfidf_doc.items(), key=lambda item: item[1], reverse=True)[0:750]))
             #ordina gli elementi del dizionario e la chiave di ordinamento è il peso tfidf (cioè item[1] nella coppia chiave-valore)
         else:
-            tfidf_corpus.append(tfidf_doc)
+        tfidf_corpus.append(tfidf_doc)
     return tfidf_corpus  
 
-#testo=texts[0]
 
 def TF_IDF2(testo, N, n_i, num):
      #numero di documenti nel corpus
@@ -65,8 +64,6 @@ from itertools import repeat
 def TFIDF_par(testi, N, n_i, num):
     N_CPU = mp.cpu_count()
     pool=mp.Pool(processes=N_CPU)
-    #f=partial(TF_IDF2, N,n_i,num)
-    #t=pool.map(f, testi)
     t=pool.starmap(TF_IDF2, zip(testi, repeat(N), repeat(n_i), repeat(num)))
     pool.close()
     pool.join()
