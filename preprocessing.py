@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import numpy as np
 import tqdm
-import multiprocessing as mp
+
 
 stop_words= set(stopwords.words("english"))
     
@@ -23,7 +23,7 @@ for i in range(0,len(numeri)):
     stop_words.add(numeri[i])
 stop_words.add("getty")
 stop_words.add("slides")
-verbi_comuni="ask become begin call come could feel find get give go hear help keep know leave let like live look make may mean might move need play put run say see seem show start take talk tell think try turn use want work would said got made went gone knew known took token saw seen came thought gave givenfound told felt left"
+verbi_comuni="ask become begin call come could find get give go hear keep know leave let like live look make may might move need play put run say see seem show start take tell think try use want work would said got made went gone knew known took token saw seen came thought gave given found told left"
 verbi_comuni=verbi_comuni.split(" ")
 
 
@@ -48,15 +48,12 @@ def eliminare(tagged_words1):
                 togli[i]=1
     return togli
 
-#STEMMING
-#ps = PorterStemmer() 
-#ps=LancasterStemmer()
+
 stemmer = SnowballStemmer("english")
-##LEMMING:
-#lem = WordNetLemmatizer()
+lem = WordNetLemmatizer()
 
 #un_testo=testi_file.Testo[i]
-def preprocessing(un_testo):
+def preprocessing1(un_testo):
     #testi_file=testi_train
     #un_testo=testi_train.Testo[0]
     parole=un_testo.split(" ")
@@ -75,7 +72,7 @@ def preprocessing(un_testo):
     #stemming
     stemmed_words=[]
     for w in finali:
-        stemmed_words.append(stemmer.stem(w))
+        stemmed_words.append(stemmer.stem(lem.lemmatize(w, pos='v')))
     finali=stemmed_words
     #lemming
     # lemmed_words=[]
