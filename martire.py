@@ -57,7 +57,7 @@ for i in range(len(Hist)):
 n_test=[] 
 n_training=[]
 for i in range(len(Hist)):
-    a=len(Hist[i])//2
+    a=int(len(Hist[i])*0.9)
     temp_train=[]
     temp_test=[]
     for j in range(len(Hist[i])):
@@ -143,10 +143,10 @@ with open("testi_test.csv", "w") as file:
 ######## apertura file testi
          
 #dataset di training
-testi_train = pandas.read_csv("testi_train.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) 
+testi_train = pandas.read_csv("testi_train75.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
 
 #dataset di test
-testi_test = pandas.read_csv("testi_test.csv", names=["ID", "Testo"], header=None, error_bad_lines=False) 
+testi_test = pandas.read_csv("testi_test75.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
 
 
 
@@ -183,12 +183,12 @@ dictionary=corpora.Dictionary(processed_corpus)
 corpus=[dictionary.doc2bow(text) for text in processed_corpus]
 
 ##alleniamo il modello e lo salviamo su file... PARTE DA NON FAR GIRARE
-filename = 'lda_model_porter.sav'
-ldamodel=models.ldamodel.LdaModel(corpus, num_topics=100, id2word=dictionary, passes=20)
+filename = 'lda_model_snow75.sav'
+ldamodel=models.LdaMulticore(corpus, num_top ics=100, id2word=dictionary, passes=20, workers=4)
 pickle.dump(ldamodel, open(filename, 'wb')) #per salvare il modello su file
 
 #carichiamo il file col modello allenato
-ldamodel = pickle.load(open('lda_model.sav', 'rb'))
+ldamodel = pickle.load(open('lda_model_snow25.sav', 'rb'))
 
 ##appresentazione in dimesioni latenti di tutti i testi del corpus
 
@@ -198,6 +198,7 @@ for i in tqdm.tqdm(range(len(doc_lda))):
     lda_dict.append(dict(doc_lda[i])) 
     
 ######## Rappresentazione in TFIDF per le news di training
+
 doc_tfidf=TF_IDF(texts)
 
 ######## Content based profile
@@ -208,28 +209,29 @@ u_profile_lda=utenti_lda(Hist,doc_lda, S_norep)
 u_profile_tfidf=utenti_tfidf_par(Hist,doc_tfidf, S_norep)
 
 
-
-
-u_profile_tfidf2[999]
-len(u_profile_tfidf)
 ############################# Lavoriamo sul DATASET DI TEST#####################
 
 ######## Preprocessing dei testi delle news di test
 
-texts2=preprocessing(testi_test)  
-
-
+inizio=time.time()
+N_CPU = mp.cpu_count()
+pool=mp.Pool(processes=N_CPU)
+texts2=pool.map(preprocessing, list(testi_test.Testo))
+pool.close()
+pool.join()
+fine=time.time()
+print(fine-inizio)
 ######## Rappresentazione in LDA per le news di test
 
 ##creazione del corpus
 #frequenza di ogni parola
 frequency2 = defaultdict(int) 
-for text in texts:
+for text in texts2:
     for token in text:
         frequency2[token] += 1
 #teniamo solo le parole che si ripetono più di una volta
 processed_corpus2 = [[token for token in text if frequency2[token] > 1] 
-                    for text in texts]
+                    for text in texts2]
 #a ogni parola associamo un numero
 dictionary2=corpora.Dictionary(processed_corpus2)
 #a ogni numero corrispondente alle parole si associa la frequenza
@@ -240,8 +242,8 @@ corpus2=[dictionary2.doc2bow(text) for text in processed_corpus2]
 doc_lda2 = ldamodel[corpus2] #lista di liste
 
 lda_dict2=[] #lista di dizionari
-for i in tqdm.tqdm(range(len(doc2_lda))):
-    lda_dict2.append(dict(doc2_lda[i]))
+for i in tqdm.tqdm(range(len(doc_lda2))):
+    lda_dict2.append(dict(doc_lda2[i]))
 
 
 ######## Rappresentazione in TFIDF per le news di training
@@ -255,13 +257,12 @@ doc2_tfidf=TF_IDF(texts2)
 
 with open("risultati.csv", "w") as file:
      writer=csv.writer(file)
-     #for i in tqdm.tqdm(range(len(u_profile_lda))): #gira sui 1000 utenti
-     for i in tqdm.tqdm(range(10)): #gira sui 1000 utenti
+     for i in tqdm.tqdm(range(len(u_profile_lda))): #gira sui 1000 utenti
          for j in range(len(lda_dict2)): #gira sulle nuove news
              u=Id_utente[i]
              n=S_norep2[j]
-             #s_lda=similarità(u_profile_lda[i], lda_dict2[j])
-             s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
+             s_lda=similarità(u_profile_lda[i], lda_dict2[j])
+             #s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
              writer.writerow([u,n, s_lda])
              
 risultati=pandas.read_csv("risultati.csv", names=["UID","NID", "LDA"], header=None, error_bad_lines=False)    
