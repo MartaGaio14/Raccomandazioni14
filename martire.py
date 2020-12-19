@@ -1,3 +1,17 @@
+righe=2000 #numero di utenti da campionare
+Ntfidf=750 #lunghezza massima della rappresentazione in tfidf
+train_test=0.8 #percentuale di news di ogni history da mettere nel dataset di training
+N=10 #numero di news da raccomandare
+
+##nome file dataset delle news coi body estratti
+filename_body="testi2000.csv"
+
+##nome file modello lda (da scrivere)
+filename_lda = 'lda_model_snow2000_80.sav'
+
+##nome file risultati similarità (da scrivere)
+filename_sim="risultati2000_80.csv"
+
 import urllib
 from bs4 import BeautifulSoup
 import pandas
@@ -21,7 +35,7 @@ from similarita import similarità
 ###########FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_test######################
 
 ######## apertura del file
-righe=1000 #numero di utenti che verranno campionati
+
 Set = open("behaviors_test.tsv")
 Set1 = pandas.read_csv(Set, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1, 3])
 Set.close()
@@ -57,7 +71,7 @@ for i in range(len(Hist)):
 n_test=[] 
 n_training=[]
 for i in range(len(Hist)):
-    a=int(len(Hist[i])*0.9)
+    a=int(len(Hist[i])*train_test)
     temp_train=[]
     temp_test=[]
     for j in range(len(Hist[i])):
@@ -82,7 +96,8 @@ for i in range(len(n_test)):
     Storie_test.extend(n_test[i])            
 S_norep2 = list(dict.fromkeys(Storie_test))
 
-        
+##lista delle news totali per le quali fare il web scraping e il preprocessing
+tutteNID=S_norep+S_norep2
 #########################FILE CON LE INFORMAZIONI SULLE NEWS: news_test######################### 
 
 ######## apertura del file
@@ -108,87 +123,68 @@ def vattene(html):
     text = '\n'.join(chunk for chunk in chunks if chunk)
     return text
 
-######## per il DATASET DI TRAINING:
-##dal dataset completo selezioniamo solo le righe contenenti le news che sono in S_norep
+
+##dal dataset completo selezioniamo solo le righe contenenti le news che sono in tutteNID
 news2={}
 news2=pandas.DataFrame(news2)
-for i in tqdm.tqdm(range(0,len(S_norep))): 
-    a=news.loc[news["ID"] == S_norep[i]] #prende articoli contenuti in Snorep
+for i in tqdm.tqdm(range(0,len(tutteNID))):
+    a=news.loc[news["ID"] == tutteNID[i]] #prende articoli contenuti in tutteNID
     news2=pandas.concat([news2, a], ignore_index=True) #nuovo dataset
 ##estrazione dei testi delle news
-with open("testi_train.csv", "w") as file:
+
+with open(filename_body, "w",encoding="Utf-8") as file:
      writer=csv.writer(file)
      for i in tqdm.tqdm(range(0, len(news2))):
          url=news2.URL[i]
          html = urllib.request.urlopen(url)
          testo=vattene(html)
          writer.writerow([news2.ID[i], testo]) 
-
-######## per il DATASET DI TEST:
-##dal dataset completo selezioniamo solo le righe contenenti le news che sono in S_norep2
-news3={}
-news3=pandas.DataFrame(news3)
-for i in tqdm.tqdm(range(0,len(S_norep2))): 
-    a=news.loc[news["ID"] == S_norep2[i]] #prende articoli contenuti in Snorep
-    news3=pandas.concat([news3, a], ignore_index=True) #nuovo dataset   
-##estrazione dei testi delle news
-with open("testi_test.csv", "w") as file:
-     writer=csv.writer(file)
-     for i in tqdm.tqdm(range(0, len(news3))):
-         url=news3.URL[i]
-         html = urllib.request.urlopen(url)
-         testo=vattene(html)
-         writer.writerow([news3.ID[i], testo]) 
-        
+print("Fatto web-scraping")
 ######## apertura file testi
-         
-#dataset di training
-testi_train = pandas.read_csv("testi_train75.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
+testi= pandas.read_csv("testi_news.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
 
-#dataset di test
-testi_test = pandas.read_csv("testi_test75.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
-
-
-
-
-############################# Lavoriamo sul DATASET DI TRAINING##################
-
-######## Preprocessing dei testi delle news di training
+####### preprocessing per tutti i testi
 
 inizio=time.time()
 N_CPU = mp.cpu_count()
 pool=mp.Pool(processes=N_CPU)
-texts=pool.map(preprocessing, list(testi_train.Testo))
+texts=pool.map(preprocessing, list(testi.Testo))
 pool.close()
 pool.join()
 fine=time.time()
 print(fine-inizio)
 
+print("Fatto preprocessing")
 
+####### divisione dei testi processati in training e test
+#i primi len(S_norep) articoli sono del dataset di training
+texts_train=texts[0:len(S_norep)-1]
+texts_test=texts[len(S_norep):len(texts)-1]
 
 ######## Rappresentazione in LDA per le news di training
 
 ##creazione del corpus
 #frequenza di ogni parola
 frequency = defaultdict(int) 
-for text in texts:
+for text in texts_train:
     for token in text:
         frequency[token] += 1
 #teniamo solo le parole che si ripetono più di una volta
 processed_corpus = [[token for token in text if frequency[token] > 1] 
-                    for text in texts]
+                    for text in texts_train]
 #a ogni parola associamo un numero
 dictionary=corpora.Dictionary(processed_corpus)
 #a ogni numero corrispondente alle parole si associa la frequenza
 corpus=[dictionary.doc2bow(text) for text in processed_corpus]
 
 ##alleniamo il modello e lo salviamo su file... PARTE DA NON FAR GIRARE
-filename = 'lda_model_snow75.sav'
-ldamodel=models.LdaMulticore(corpus, num_top ics=100, id2word=dictionary, passes=20, workers=4)
-pickle.dump(ldamodel, open(filename, 'wb')) #per salvare il modello su file
 
+ldamodel=models.LdaMulticore(corpus, num_topics=100, id2word=dictionary, passes=20, workers=4)
+pickle.dump(ldamodel, open(filename_lda, 'wb')) #per salvare il modello su file
+
+print("Allenata l'LDA")
 #carichiamo il file col modello allenato
-ldamodel = pickle.load(open('lda_model_snow25.sav', 'rb'))
+#ldamodel = pickle.load(open(filename_lda, 'rb'))
 
 ##appresentazione in dimesioni latenti di tutti i testi del corpus
 
@@ -199,39 +195,30 @@ for i in tqdm.tqdm(range(len(doc_lda))):
     
 ######## Rappresentazione in TFIDF per le news di training
 
-doc_tfidf=TF_IDF(texts)
+doc_tfidf=TF_IDF(texts_train)
 
 ######## Content based profile
 
 #in rappresentazione lda
-u_profile_lda=utenti_lda(Hist,doc_lda, S_norep) 
+u_profile_lda=utenti_lda(Hist,doc_lda, S_norep)
+print("Calcolati profili utenti LDA")
 #in rappresentazione tfidf
 u_profile_tfidf=utenti_tfidf_par(Hist,doc_tfidf, S_norep)
-
+print("Calcolati profili utenti TFIDF")
 
 ############################# Lavoriamo sul DATASET DI TEST#####################
 
-######## Preprocessing dei testi delle news di test
-
-inizio=time.time()
-N_CPU = mp.cpu_count()
-pool=mp.Pool(processes=N_CPU)
-texts2=pool.map(preprocessing, list(testi_test.Testo))
-pool.close()
-pool.join()
-fine=time.time()
-print(fine-inizio)
 ######## Rappresentazione in LDA per le news di test
 
 ##creazione del corpus
 #frequenza di ogni parola
 frequency2 = defaultdict(int) 
-for text in texts2:
+for text in texts_test:
     for token in text:
         frequency2[token] += 1
 #teniamo solo le parole che si ripetono più di una volta
 processed_corpus2 = [[token for token in text if frequency2[token] > 1] 
-                    for text in texts2]
+                    for text in texts_test]
 #a ogni parola associamo un numero
 dictionary2=corpora.Dictionary(processed_corpus2)
 #a ogni numero corrispondente alle parole si associa la frequenza
@@ -245,17 +232,15 @@ lda_dict2=[] #lista di dizionari
 for i in tqdm.tqdm(range(len(doc_lda2))):
     lda_dict2.append(dict(doc_lda2[i]))
 
-
 ######## Rappresentazione in TFIDF per le news di training
-doc2_tfidf=TF_IDF(texts2)
+doc2_tfidf=TF_IDF(texts_test)
 
-
-         
+print("Calcolate lda e tfidf news di test")
 ############################# RACCOMANDAZIONI#####################################
 
 #crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave) 
 
-with open("risultati.csv", "w") as file:
+with open(filename_sim, "w") as file:
      writer=csv.writer(file)
      for i in tqdm.tqdm(range(len(u_profile_lda))): #gira sui 1000 utenti
          for j in range(len(lda_dict2)): #gira sulle nuove news
@@ -265,13 +250,9 @@ with open("risultati.csv", "w") as file:
              #s_tfidf=similarità(u_profile_tfidf[i],doc2_tfidf[j])
              writer.writerow([u,n, s_lda])
              
-risultati=pandas.read_csv("risultati.csv", names=["UID","NID", "LDA"], header=None, error_bad_lines=False)    
-    
-
+risultati=pandas.read_csv(filename_sim, names=["UID","NID", "LDA"], header=None, error_bad_lines=False)
 
 ##########PRECISIONE RECALL E FALSE POSITIVE RATE
-N=10
-
 precision=recall=fp_rate=0
 tpli=[]
 inizio=0
@@ -293,6 +274,9 @@ for u in tqdm.tqdm(range(len(n_test))):
     fp_rate+=fp/(fp+tn)
     inizio=(u+1)*len(S_norep2)+1
     fine=(u+2)*len(S_norep2)
+
+print("PRECISIONE")
+print(precision/righe)
 
 
 
