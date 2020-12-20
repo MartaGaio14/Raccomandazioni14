@@ -118,38 +118,33 @@ for i in tqdm.tqdm(range(0,len(tutteNID))):
 
 
 URLS= list(news2.URL)
-
 #with open("url_file.txt", 'w') as f:
 #    for url in URLS:
 #        f.write("%s\n" % url)
 
 ##estrazione del testo
-
-from preprocessing import *
-
 inizio=time.time()
 with open (filename_body, "w", encoding="Utf-8") as file:
     writer=csv.writer(file)
     for i in tqdm.tqdm(range(len(URLS))):
         writer.writerow([news2.ID[i], extraction(URLS[i])])
-fine=time.time()
-print(fine-inizio)
-
-
-
-inizio = time.time()
-N_CPU = mp.cpu_count()
-pool = mp.Pool(processes=N_CPU)
-testi_web = pool.map(extraction, URLS[0:1000])
-pool.close()
-pool.join()
 fine = time.time()
+print(fine - inizio)
 
+######## apertura file testi
+prova=pandas.read_csv(filename_body, names=["ID", "Testo"], header=None, error_bad_lines=False)
+
+
+# inizio = time.time()
+# N_CPU = mp.cpu_count()
+# pool = mp.Pool(processes=N_CPU)
+# testi_web = pool.map(extraction, URLS[0:1000])
+# pool.close()
+# pool.join()
+# fine = time.time()
 
 
 print("Fatto web-scraping")
-######## apertura file testi
-testi= pandas.read_csv("testi_news.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
 
 ####### preprocessing per tutti i testi
 
