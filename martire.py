@@ -4,7 +4,7 @@ train_test=0.8 #percentuale di news di ogni history da mettere nel dataset di tr
 N=10 #numero di news da raccomandare
 
 ##nome file dataset delle news coi body estratti
-filename_body="testi2000.csv"
+filename_body="testi1000.csv"
 
 ##nome file modello lda (da scrivere)
 filename_lda = 'lda_model_snow2000_80.sav'
@@ -125,26 +125,27 @@ URLS= list(news2.URL)
 
 ##estrazione del testo
 
-import multiprocessing as mp
 from preprocessing import *
+
+inizio=time.time()
+with open (filename_body, "w", encoding="Utf-8") as file:
+    writer=csv.writer(file)
+    for i in tqdm.tqdm(range(len(URLS))):
+        writer.writerow([news2.ID[i], extraction(URLS[i])])
+fine=time.time()
+print(fine-inizio)
+
+
+
 inizio = time.time()
 N_CPU = mp.cpu_count()
 pool = mp.Pool(processes=N_CPU)
-testi_web = pool.map(extraction, URLS)
+testi_web = pool.map(extraction, URLS[0:1000])
 pool.close()
 pool.join()
 fine = time.time()
 
-print(fine - inizio)
-inizio = time.time()
-lista = []
-for i in tqdm.tqdm(range(0, 1000)):
-    url = URLS[i]
-    html = urllib.request.urlopen(url)
-    testo = vattene(html)
-    lista.append(testo)
-fine = time.time()
-print(fine - inizio)
+
 
 print("Fatto web-scraping")
 ######## apertura file testi
