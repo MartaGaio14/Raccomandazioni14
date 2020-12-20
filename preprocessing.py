@@ -9,9 +9,23 @@ from nltk.stem import SnowballStemmer
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import numpy as np
-import tqdm
+import requests
+from bs4 import BeautifulSoup
 
 
+def extraction(url):
+    r = requests.get(url, timeout=10)
+    if r.status_code == 200:
+        soup = BeautifulSoup(r.text, 'html.parser')
+        sec=soup.find_all('section')
+        if len(sec) > 2:
+            body_text = sec[2].text.strip()
+        else:
+            slides = soup.find_all("div", class_="gallery-caption-text")
+            body_text = ""
+            for i in range(len(slides)):
+                body_text += (slides[i].text.strip())
+    return body_text
 stop_words= set(stopwords.words("english"))
     
 lettere = list('abcdefghijklmnopqrstuvwxyz')
@@ -104,3 +118,4 @@ def disegna(testo):
                       collocations=False).generate(out3)
     # Plot
     plot_cloud(wordcloud)
+
