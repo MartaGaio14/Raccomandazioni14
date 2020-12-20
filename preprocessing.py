@@ -17,15 +17,21 @@ def extraction(url):
     r = requests.get(url, timeout=10)
     if r.status_code == 200:
         soup = BeautifulSoup(r.text, 'html.parser')
-        sec=soup.find_all('section')
-        if len(sec) > 2:
+        sec=soup.find_all("section")
+        if len(sec) == 3: ##belle, tipo URLS[0]
+            sec=soup.find_all("section")
             body_text = sec[2].text.strip()
-        else:
+        elif len(sec) == 2: ##brutte, tipo URLS[1]
             slides = soup.find_all("div", class_="gallery-caption-text")
             body_text = ""
             for i in range(len(slides)):
                 body_text += (slides[i].text.strip())
+        else:##tipo il video URLS[182]
+            body_text="sbagliata"
     return body_text
+
+
+
 stop_words= set(stopwords.words("english"))
     
 lettere = list('abcdefghijklmnopqrstuvwxyz')
