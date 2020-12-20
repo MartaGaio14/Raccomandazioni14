@@ -1,4 +1,4 @@
-righe=2000 #numero di utenti da campionare
+righe=1000 #numero di utenti da campionare
 Ntfidf=750 #lunghezza massima della rappresentazione in tfidf
 train_test=0.8 #percentuale di news di ogni history da mettere nel dataset di training
 N=10 #numero di news da raccomandare
@@ -108,21 +108,6 @@ read_news.info(null_counts=True)
 news=pandas.DataFrame(read_news)
 news_file.close()
 
-######## funzione per l'estrazione del testo
-def vattene(html):
-    soup = BeautifulSoup(html) # crea oggetto bs4 dal link html
-    # remove javascript and stylesheet code
-    for script in soup(["script", "style"]): 
-        script.extract()
-    text = soup.get_text()
-    # break into lines and remove leading and trailing space on each
-    lines = (line.strip() for line in text.splitlines()) #crea generatore
-    # break multi-headlines into a line each
-    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-    # drop blank lines
-    text = '\n'.join(chunk for chunk in chunks if chunk)
-    return text
-
 
 ##dal dataset completo selezioniamo solo le righe contenenti le news che sono in tutteNID
 news2={}
@@ -130,15 +115,37 @@ news2=pandas.DataFrame(news2)
 for i in tqdm.tqdm(range(0,len(tutteNID))):
     a=news.loc[news["ID"] == tutteNID[i]] #prende articoli contenuti in tutteNID
     news2=pandas.concat([news2, a], ignore_index=True) #nuovo dataset
-##estrazione dei testi delle news
 
-with open(filename_body, "w",encoding="Utf-8") as file:
-     writer=csv.writer(file)
-     for i in tqdm.tqdm(range(0, len(news2))):
-         url=news2.URL[i]
-         html = urllib.request.urlopen(url)
-         testo=vattene(html)
-         writer.writerow([news2.ID[i], testo]) 
+
+URLS= list(news2.URL)
+
+#with open("url_file.txt", 'w') as f:
+#    for url in URLS:
+#        f.write("%s\n" % url)
+
+##estrazione del testo
+
+import multiprocessing as mp
+from preprocessing import *
+inizio = time.time()
+N_CPU = mp.cpu_count()
+pool = mp.Pool(processes=N_CPU)
+testi_web = pool.map(extraction, URLS)
+pool.close()
+pool.join()
+fine = time.time()
+
+print(fine - inizio)
+inizio = time.time()
+lista = []
+for i in tqdm.tqdm(range(0, 1000)):
+    url = URLS[i]
+    html = urllib.request.urlopen(url)
+    testo = vattene(html)
+    lista.append(testo)
+fine = time.time()
+print(fine - inizio)
+
 print("Fatto web-scraping")
 ######## apertura file testi
 testi= pandas.read_csv("testi_news.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
