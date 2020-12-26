@@ -1,17 +1,26 @@
-########PREPROCESSING DEI TESTI
+######## PREPROCESSING DEI TESTI
 #RIMOZIONE DELLE STOPWORDS   
 import nltk
 from nltk.corpus import stopwords
-#from nltk.stem import PorterStemmer
-#from nltk.stem import LancasterStemmer
 from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.stem import SnowballStemmer
-import matplotlib.pyplot as plt
-from wordcloud import WordCloud
 import numpy as np
-import requests
-from bs4 import BeautifulSoup
 
+
+def vattene(url):
+    r = requests.get(url, timeout=10)
+    soup = BeautifulSoup(r.text, 'html.parser') # crea oggetto bs4 dal link html
+    # remove javascript and stylesheet code
+    for script in soup(["script", "style"]):
+        script.extract()
+    text = soup.get_text()
+    # break into lines and remove leading and trailing space on each
+    lines = (line.strip() for line in text.splitlines()) #crea generatore
+    # break multi-headlines into a line each
+    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+    # drop blank lines
+    text = '\n'.join(chunk for chunk in chunks if chunk)
+    return text
 
 def extraction(url):
     r = requests.get(url, timeout=10)
@@ -30,8 +39,6 @@ def extraction(url):
             body_text="sbagliata"
     return body_text
 
-
-
 stop_words= set(stopwords.words("english"))
     
 lettere = list('abcdefghijklmnopqrstuvwxyz')
@@ -43,9 +50,8 @@ for i in range(0,len(numeri)):
     stop_words.add(numeri[i])
 stop_words.add("getty")
 stop_words.add("slides")
-verbi_comuni="ask become begin call come could find get give go hear keep know leave let like live look make may might move need play put run say see seem show start take tell think try use want work would said got made went gone knew known took token saw seen came thought gave given found told left"
-verbi_comuni=verbi_comuni.split(" ")
-
+verbi_comuni = "ask become begin call come could find get give go hear keep know leave let like live look make may might move need play put run say see seem show start take tell think try use want work would said got made went gone knew known took token saw seen came thought gave given found told left"
+verbi_comuni = verbi_comuni.split(" ")
 
 for i in range(len(verbi_comuni)):
     stop_words.add(verbi_comuni[i])
@@ -100,28 +106,4 @@ def preprocessing1(un_testo):
     #     lemmed_words.append(lem.lemmatize(w,"v"))
     # finali=lemmed_words
     return finali
-
-
-
-###WORDCLOUD per controllare visivamente il preprocessing
-    
-def plot_cloud(wordcloud):  
-    # Set figure size
-    plt.figure(figsize=(40, 30))
-    # Display image
-    plt.imshow(wordcloud) 
-    # No axis details
-    plt.axis("off");
-
-# Generate word cloud
-def disegna(testo):
-    stringa_text=str(testo)
-    out = stringa_text.replace("'","")
-    out1=out.replace(",","")
-    out2=out1.replace("]","")
-    out3=out2.replace("[","")
-    wordcloud = WordCloud(width = 3000, height = 2000, random_state=1, 
-                      collocations=False).generate(out3)
-    # Plot
-    plot_cloud(wordcloud)
 
