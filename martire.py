@@ -11,25 +11,25 @@ filename_lda = 'lda_model_snow1000.sav'
 ##nome file risultati similarità (da scrivere)
 filename_sim = "risultati1000.csv"
 
-
 ###########FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_test######################
 
 ######## apertura del file
 import pandas
 import tqdm
+
 Set = open("behaviors_test.tsv")
 Set1 = pandas.read_csv(Set, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1, 3])
 Set.close()
-#pulizia del dataset
+# pulizia del dataset
 GrandeSet = Set1.dropna()
 GrandeSet = GrandeSet.reset_index(drop=True)
 GrandeSet.info(null_counts=True)
 l = []
 for i in tqdm.tqdm(range(len(GrandeSet))):
     a = GrandeSet.History[i].split(" ")
-    if len(a) > 150:
+    if len(a) > 100:
         l.append(i)
-Set_piu150 = GrandeSet.loc[l] # sono rimasti 229 121 utenti (behaviours ridotto) // 92 970 utenti se len=150
+Set_piu150 = GrandeSet.loc[l]  # sono rimasti 229 121 utenti (behaviours ridotto) // 92 970 utenti se len=150
 Set_piu150 = Set_piu150.reset_index(drop=True)
 
 #########################FILE CON LE INFORMAZIONI SULLE NEWS: news_test#########################
@@ -43,24 +43,25 @@ news_file.close()
 read_news = read_news.dropna()
 read_news.info(null_counts=True)
 
-#campionamento casuale di 1000 utenti tra quelli con History maggiori di 100
+# campionamento casuale di 1000 utenti tra quelli con History maggiori di 100
 import numpy as np
+
 np.random.seed(122020)
-campione=np.random.randint(0, len(Set_piu150), righe)
-dati_camp= Set_piu150.loc[campione]
+campione = np.random.randint(0, len(Set_piu150), righe)
+dati_camp = Set_piu150.loc[campione]
 dati_camp = dati_camp.reset_index(drop=True)
 dati_camp.head()
 
-Hist=[] #lista di liste news per utente
-Id_utente=[] #lista id utenti
+Hist = []  # lista di liste news per utente
+Id_utente = []  # lista id utenti
 for i in range(len(dati_camp)):
-    a=dati_camp.History[i].split(" ")
+    a = dati_camp.History[i].split(" ")
     Hist.append(a)
     Id_utente.append(dati_camp.UID[i])
 
 ###### vedi file controllo_url.py
-#le news che sono risultate prive di URL sono "N113363", "N110434", "N102010", "N45635"
-#le news che non compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
+# le news che sono risultate prive di URL sono "N113363", "N110434", "N102010", "N45635"
+# le news che non compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
 
 ######## eliminiamo le news poblematiche ( qualora facessero parte del campione )
 for i in range(len(Hist)):
@@ -127,11 +128,12 @@ from bs4 import BeautifulSoup
 import csv
 import time
 
+
 def extraction(url):
     r = requests.get(url, timeout=10)
     if r.status_code == 200:
         soup = BeautifulSoup(r.text, 'html.parser')
-        sec =soup.find_all('section')
+        sec = soup.find_all('section')
         if len(sec) > 2:
             body_text = sec[2].text.strip()
         else:
@@ -141,27 +143,17 @@ def extraction(url):
                 body_text += (slides[i].text.strip())
     return body_text
 
+
 inizio = time.time()
 with open(filename_body, "w", encoding="Utf-8") as file:
     writer = csv.writer(file)
     for i in tqdm.tqdm(range(len(URLS))):
         writer.writerow([news.ID[i], extraction(URLS[i])])
 fine = time.time()
-print(fine - inizio)
+print(fine - inizio) #2 ore (computer di ire)
 
 ######## apertura file testi
 prova = pandas.read_csv(filename_body, names=["ID", "Testo"], header=None, error_bad_lines=False)
-
-# inizio = time.time()
-# N_CPU = mp.cpu_count()
-# pool = mp.Pool(processes=N_CPU)
-# testi_web = pool.map(extraction, URLS[0:1000])
-# pool.close()
-# pool.join()
-# fine = time.time()
-
-
-print("Fatto web-scraping")
 
 ####### preprocessing per tutti i testi
 
@@ -298,14 +290,10 @@ for u in tqdm.tqdm(range(len(n_test))):
 print("PRECISIONE")
 print(precision / righe)
 
-
-
 from collections import defaultdict
 from gensim import corpora, models
 import pickle
 import time
-
-
 
 # importiamo i moduli da noi creati
 from preprocessing import *
