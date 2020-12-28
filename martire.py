@@ -3,7 +3,7 @@ Ntfidf = 500  # lunghezza massima della rappresentazione in tfidf
 N = 10  # numero di news da raccomandare
 
 ##nome file dataset delle news coi body estratti
-filename_body = "testi1000.csv"
+filename_body = "testi1000random.csv"
 
 ##nome file modello lda (da scrivere)
 filename_lda = 'lda_model_snow1000.sav'
@@ -27,29 +27,17 @@ GrandeSet.info(null_counts=True)
 l = []
 for i in tqdm.tqdm(range(len(GrandeSet))):
     a = GrandeSet.History[i].split(" ")
-    if len(a) > 150:
+    if len(a) > 100:
         l.append(i)
-Set_piu150 = GrandeSet.loc[l] # sono rimasti 229 121 utenti (behaviours ridotto) // 92 970 utenti se len=150
-Set_piu150 = Set_piu150.reset_index(drop=True)
-
-#########################FILE CON LE INFORMAZIONI SULLE NEWS: news_test#########################
-
-######## apertura del file
-news_file = open("news_test.tsv", encoding="Latin1")
-read_news = pandas.read_csv(news_file, sep="\t", header=None,
-                            names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"],
-                            usecols=[0, 5])
-news_file.close()
-read_news = read_news.dropna()
-read_news.info(null_counts=True)
+Set_piu100 = GrandeSet.loc[l] # sono rimasti 229 121 utenti (behaviours ridotto) // 92 970 utenti se len=150
+Set_piu100 = Set_piu100.reset_index(drop=True)
 
 #campionamento casuale di 1000 utenti tra quelli con History maggiori di 100
 import numpy as np
 np.random.seed(122020)
-campione=np.random.randint(0, len(Set_piu150), righe)
-dati_camp= Set_piu150.loc[campione]
+campione=np.random.randint(0, len(Set_piu100), righe)
+dati_camp= Set_piu100.loc[campione]
 dati_camp = dati_camp.reset_index(drop=True)
-dati_camp.head()
 
 Hist=[] #lista di liste news per utente
 Id_utente=[] #lista id utenti
@@ -58,11 +46,11 @@ for i in range(len(dati_camp)):
     Hist.append(a)
     Id_utente.append(dati_camp.UID[i])
 
+######## eliminiamo le news poblematiche ( qualora facessero parte del campione )
 ###### vedi file controllo_url.py
 #le news che sono risultate prive di URL sono "N113363", "N110434", "N102010", "N45635"
 #le news che non compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
 
-######## eliminiamo le news poblematiche ( qualora facessero parte del campione )
 for i in range(len(Hist)):
     if Hist[i].count("N113363") > 0:
         Hist[i].remove("N113363")
@@ -77,8 +65,85 @@ for i in range(len(Hist)):
     if Hist[i].count("N1850") > 0:
         Hist[i].remove("N1850")
 
-######## divisione in training set e test set
-# (viene mantenuta la divisione delle History rispetto ad ogni utente)
+##creiamo il corpus completo delle news lette dai 1000 utenti campionati (senza ripetizioni)
+tutteNID = []
+for i in range(len(Hist)):
+    tutteNID+= Hist[i]
+tutteNID=list(dict.fromkeys(tutteNID))
+
+#########################FILE CON LE INFORMAZIONI SULLE NEWS: news_test#########################
+
+######## apertura del file
+news_file = open("news_test.tsv", encoding="Latin1")
+read_news = pandas.read_csv(news_file, sep="\t", header=None,
+                            names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"],
+                            usecols=[0, 5])
+news_file.close()
+read_news = read_news.dropna()
+read_news.info(null_counts=True)
+read_news = read_news.reset_index(drop=True)
+
+
+# dal dataset completo vengono selezionate solo le righe contenenti le news che sono in tutteNID
+
+a=[]#lista degli indici delle righe del dataframe da tenere
+for i in tqdm.tqdm(range(len(read_news.ID))):
+    if read_news.ID[i] in tutteNID:
+        a.append(i)
+news=read_news.loc[a]
+news= news.reset_index(drop=True)
+
+
+URLS = list(news.URL)
+# with open("url_file.txt", 'w') as f:
+#    for url in URLS:
+#        f.write("%s\n" % url)
+
+##estrazione del testo
+
+import csv
+import time
+from preprocessing import extraction
+
+with open(filename_body, "w", encoding="Utf-8") as file:
+    writer = csv.writer(file)
+    for i in tqdm.tqdm(range(len(URLS))):
+        writer.writerow([news.ID[i], extraction(URLS[i])])
+
+print("Fatto web-scraping")
+######## apertura file testi
+TESTI = pandas.read_csv("testi2000extraction.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
+
+##rimuoviamo da TESTI e da Hist le news con video
+IDvideo=[] #lista con id delle news con video
+posvideo=[] #lista con posizioni delle news con video
+for i in tqdm.tqdm(range(len(TESTI.Testo))):
+    if TESTI.Testo[i]=="sbagliata":
+        IDvideo.append(TESTI.ID[i])
+        posvideo.append(i)
+TESTI=TESTI.drop(posvideo)
+
+for storia in tqdm.tqdm(Hist):
+    for news in storia:
+        if news in IDvideo:
+            storia.remove(news)
+
+####### preprocessing per tutti i testi
+from preprocessing import preprocessing1
+inizio = time.time()
+N_CPU = mp.cpu_count()
+pool = mp.Pool(processes=N_CPU)
+texts = pool.map(preprocessing1, list(TESTI.Testo))
+pool.close()
+pool.join()
+fine = time.time()
+print(fine - inizio)
+
+print("Fatto preprocessing")
+
+
+######## divisione in training set e test set del corpus delle news
+#(viene mantenuta la divisione delle History rispetto ad ogni utente)
 n_test = []
 n_training = []
 for i in range(len(Hist)):
@@ -105,52 +170,8 @@ for i in range(len(n_test)):
     Storie_test.extend(n_test[i])
 S_norep2 = list(dict.fromkeys(Storie_test))
 
-##lista delle news totali per le quali fare il web scraping e il preprocessing
+##lista delle news totali (che vanno bene-->no video)
 tutteNID = S_norep + S_norep2
-
-# dal dataset completo vengono selezionate solo le righe contenenti le news che sono in tutteNID
-news = {}
-news = pandas.DataFrame(news)
-for i in tqdm.tqdm(range(0, len(tutteNID))):
-    a = read_news.loc[read_news["ID"] == tutteNID[i]]
-    news = pandas.concat([news, a], ignore_index=True)  # nuovo dataset
-
-URLS = list(news.URL)
-# with open("url_file.txt", 'w') as f:
-#    for url in URLS:
-#        f.write("%s\n" % url)
-
-
-##estrazione del testo
-import requests
-from bs4 import BeautifulSoup
-import csv
-import time
-
-def extraction(url):
-    r = requests.get(url, timeout=10)
-    if r.status_code == 200:
-        soup = BeautifulSoup(r.text, 'html.parser')
-        sec =soup.find_all('section')
-        if len(sec) > 2:
-            body_text = sec[2].text.strip()
-        else:
-            slides = soup.find_all("div", class_="gallery-caption-text")
-            body_text = ""
-            for i in range(len(slides)):
-                body_text += (slides[i].text.strip())
-    return body_text
-
-inizio = time.time()
-with open(filename_body, "w", encoding="Utf-8") as file:
-    writer = csv.writer(file)
-    for i in tqdm.tqdm(range(len(URLS))):
-        writer.writerow([news.ID[i], extraction(URLS[i])])
-fine = time.time()
-print(fine - inizio)
-
-######## apertura file testi
-prova = pandas.read_csv(filename_body, names=["ID", "Testo"], header=None, error_bad_lines=False)
 
 # inizio = time.time()
 # N_CPU = mp.cpu_count()
@@ -160,24 +181,10 @@ prova = pandas.read_csv(filename_body, names=["ID", "Testo"], header=None, error
 # pool.join()
 # fine = time.time()
 
-
-print("Fatto web-scraping")
-
-####### preprocessing per tutti i testi
-
-inizio = time.time()
-N_CPU = mp.cpu_count()
-pool = mp.Pool(processes=N_CPU)
-texts = pool.map(preprocessing, list(testi.Testo))
-pool.close()
-pool.join()
-fine = time.time()
-print(fine - inizio)
-
-print("Fatto preprocessing")
-
-####### divisione dei testi processati in training e test
+###### divisione dei testi processati in training e test
 # i primi len(S_norep) articoli sono del dataset di training
+
+#################QUESTO VA MODIFICATO
 texts_train = texts[0:len(S_norep) - 1]
 texts_test = texts[len(S_norep):len(texts) - 1]
 
