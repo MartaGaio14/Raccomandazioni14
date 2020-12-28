@@ -3,7 +3,7 @@ Ntfidf = 500  # lunghezza massima della rappresentazione in tfidf
 N = 10  # numero di news da raccomandare
 
 ##nome file dataset delle news coi body estratti
-filename_body = "testi1000random.csv"
+filename_body = "testi.csv"
 
 ##nome file modello lda (da scrivere)
 filename_lda = 'lda_model_snow1000.sav'
@@ -49,7 +49,7 @@ for i in range(len(dati_camp)):
 ######## eliminiamo le news poblematiche ( qualora facessero parte del campione )
 ###### vedi file controllo_url.py
 #le news che sono risultate prive di URL sono "N113363", "N110434", "N102010", "N45635"
-#le news che non compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
+#le news che compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
 
 for i in range(len(Hist)):
     if Hist[i].count("N113363") > 0:
@@ -106,13 +106,18 @@ import time
 from preprocessing import extraction
 
 with open(filename_body, "w", encoding="Utf-8") as file:
-    writer = csv.writer(file)
-    for i in tqdm.tqdm(range(len(URLS))):
+    writer = csv.writer(file, delimiter="\t")
+    for i in tqdm.tqdm(range(len(URLS[0:100]))):
         writer.writerow([news.ID[i], extraction(URLS[i])])
 
 print("Fatto web-scraping")
-######## apertura file testi
-TESTI = pandas.read_csv("testi2000extraction.csv", names=["ID", "Testo"], header=None, error_bad_lines=False)
+
+#######DA TERMINALE: PREPROCESSING CON MAP REDUCE
+# python MapReduce.py testi.csv > testi_proc.csv
+# testi_proc conterrà i testi preprocessati
+
+######## apertura file testi preprocessati
+TESTI = pandas.read_csv("risultati.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
 
 ##rimuoviamo da TESTI e da Hist le news con video
 IDvideo=[] #lista con id delle news con video
@@ -121,6 +126,7 @@ for i in tqdm.tqdm(range(len(TESTI.Testo))):
     if TESTI.Testo[i]=="sbagliata":
         IDvideo.append(TESTI.ID[i])
         posvideo.append(i)
+
 TESTI=TESTI.drop(posvideo)
 
 for storia in tqdm.tqdm(Hist):
@@ -129,15 +135,6 @@ for storia in tqdm.tqdm(Hist):
             storia.remove(news)
 
 ####### preprocessing per tutti i testi
-from preprocessing import preprocessing1
-inizio = time.time()
-N_CPU = mp.cpu_count()
-pool = mp.Pool(processes=N_CPU)
-texts = pool.map(preprocessing1, list(TESTI.Testo))
-pool.close()
-pool.join()
-fine = time.time()
-print(fine - inizio)
 
 print("Fatto preprocessing")
 
@@ -170,9 +167,6 @@ for i in range(len(n_test)):
     Storie_test.extend(n_test[i])
 S_norep2 = list(dict.fromkeys(Storie_test))
 
-##lista delle news totali (che vanno bene-->no video)
-tutteNID = S_norep + S_norep2
-
 # inizio = time.time()
 # N_CPU = mp.cpu_count()
 # pool = mp.Pool(processes=N_CPU)
@@ -182,9 +176,15 @@ tutteNID = S_norep + S_norep2
 # fine = time.time()
 
 ###### divisione dei testi processati in training e test
-# i primi len(S_norep) articoli sono del dataset di training
+testi_train=[]
+testi_test=[]
+for i in range(len(TESTI.ID)):
+    if TESTI.ID[I] in S_norep:
+        testi_train.append(texts[i])
+    else
+        testi_test.append(texts[i])
 
-#################QUESTO VA MODIFICATO
+
 texts_train = texts[0:len(S_norep) - 1]
 texts_test = texts[len(S_norep):len(texts) - 1]
 
