@@ -4,35 +4,24 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 import numpy as np
-
-def vattene(url):
-    r = requests.get(url, timeout=10)
-    soup = BeautifulSoup(r.text, 'html.parser') # crea oggetto bs4 dal link html
-    # remove javascript and stylesheet code
-    for script in soup(["script", "style"]):
-        script.extract()
-    text = soup.get_text()
-    # break into lines and remove leading and trailing space on each
-    lines = (line.strip() for line in text.splitlines()) #crea generatore
-    # break multi-headlines into a line each
-    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-    # drop blank lines
-    text = '\n'.join(chunk for chunk in chunks if chunk)
-    return text
-
+import requests
+from bs4 import BeautifulSoup
+import re
 def extraction(url):
     r = requests.get(url, timeout=10)
     if r.status_code == 200:
         soup = BeautifulSoup(r.text, 'html.parser')
         sec=soup.find_all("section")
         if len(sec) == 3: ##belle, tipo URLS[0]
-            sec=soup.find_all("section")
             body_text = sec[2].text.strip()
         elif len(sec) == 2: ##brutte, tipo URLS[1]
             slides = soup.find_all("div", class_="gallery-caption-text")
             body_text = ""
             for i in range(len(slides)):
-                body_text += (slides[i].text.strip())
+                a=slides[i].text.strip()
+                prova=re.sub(r"(\n+|\s+)", " ",a)
+                #prova=re.sub(r"\s+", " ",prova)
+                body_text += (prova)
         else:##tipo il video URLS[182]
             body_text="sbagliata"
     return body_text
@@ -71,7 +60,6 @@ def eliminare(tagged_words1):
     return togli
 
 stemmer = PorterStemmer()
-lem = WordNetLemmatizer()
 
 def preprocessing1(un_testo):
     parole=un_testo.split(" ")
