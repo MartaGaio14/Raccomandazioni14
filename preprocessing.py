@@ -1,89 +1,80 @@
-######## PREPROCESSING DEI TESTI
-#RIMOZIONE DELLE STOPWORDS   
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
-import numpy as np
+######## ESTRAZIONE e PREPROCESSING DEI TESTI
 import requests
 from bs4 import BeautifulSoup
 import re
+
 def extraction(url):
     r = requests.get(url, timeout=10)
     if r.status_code == 200:
         soup = BeautifulSoup(r.text, 'html.parser')
-        sec=soup.find_all("section")
-        if len(sec) == 3: ##belle, tipo URLS[0]
+        sec = soup.find_all("section")
+        if len(sec) == 3:  ##belle, tipo URLS[0]
             body_text = sec[2].text.strip()
-        elif len(sec) == 2: ##brutte, tipo URLS[1]
+        elif len(sec) == 2:  ##brutte, tipo URLS[1]
             slides = soup.find_all("div", class_="gallery-caption-text")
             body_text = ""
             for i in range(len(slides)):
-                a=slides[i].text.strip()
-                prova=re.sub(r"(\n+|\s+)", " ",a)
-                #prova=re.sub(r"\s+", " ",prova)
+                a = slides[i].text.strip()
+                prova = re.sub(r"(\n+|\s+)", " ", a)
                 body_text += (prova)
-        else:##tipo il video URLS[182]
-            body_text="sbagliata"
+        else:  ##tipo il video URLS[182]
+            body_text = "sbagliata"
     return body_text
 
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
 
-stop_words= set(stopwords.words("english"))
+# RIMOZIONE DELLE STOPWORDS
+stop_words = set(stopwords.words("english"))
 lettere = list('abcdefghijklmnopqrstuvwxyz')
 numeri = list('0123456789')
-for i in range(0,len(lettere)):
+for i in range(0, len(lettere)):
     stop_words.add(lettere[i])
-for i in range(0,len(numeri)):
+for i in range(0, len(numeri)):
     stop_words.add(numeri[i])
 stop_words.add("getty")
 stop_words.add("slides")
-verbi_comuni = "ask become begin call come could find get give go hear keep know leave let like live look make may might move need play put run say see seem show start take tell think try use want work would said got made went gone knew known took token saw seen came thought gave given found told left"
+verbi_comuni = "ask become begin call come could find get give go hear keep know leave let like live look make may " \
+               "might move need play put run say see seem show start take tell think try use want work would said got " \
+               "made went gone knew known took token saw seen came thought gave given found told left "
 verbi_comuni = verbi_comuni.split(" ")
 for i in range(len(verbi_comuni)):
     stop_words.add(verbi_comuni[i])
-    
-#PART OF SPEACH TAGGING
-REM=['CC','CD','DT','EX','IN','LS','MD','PDT','POS','PRP','PSRP$','RB',
-     'RBR','RBS','TO','UH','WDT','WP','WPD$','WRB', 'RP']
 
-#la funzione restituisce un vettore lungo come la lista di tuple con 0 se la tupla è da tenere e 1 
-#se è da togliere
-def eliminare(tagged_words1):
-    togli=np.zeros(len(tagged_words1))
-    res = list(zip(*tagged_words1)) #zippiamo la lista di tuple
-    res=res[1] #prendiamo solo i tag
-    for i in np.arange(len(tagged_words1)):  
-        #il ciclo prende nota di quali sono le parole da eliminare 
-        tup=res[i]
+
+# PART OF SPEACH TAGGING
+# rimozione delle parole data la loro funzione grammaticale
+def part_of_speach_tagging(words):
+    REM = ['CC', 'CD', 'DT', 'EX', 'IN', 'LS', 'MD', 'PDT', 'POS', 'PRP', 'PSRP$', 'RB',
+           'RBR', 'RBS', 'TO', 'UH', 'WDT', 'WP', 'WPD$', 'WRB', 'RP']
+    tagged_words = nltk.pos_tag(words)
+    tag = list(zip(*tagged_words))  # trasformiamo la lista di tuple (parola-POS) in due tuple [(parole), (POS)]
+    w = list(tag[0])
+    pos = tag[1]
+    da_togliere = []
+    for i in range(len(tagged_words)):  # il ciclo prende nota di quali sono le parole da eliminare
         for j in REM:
-            if tup==j:
-                togli[i]=1
-    return togli
+            if pos[i] == j:
+                da_togliere.append(w[i])
+    pulite = [word for word in w if word not in da_togliere]
+    return pulite
 
+# STEMMING
 stemmer = PorterStemmer()
 
 def preprocessing1(un_testo):
-    parole=un_testo.split(" ")
-    minuscolo=[]
-    for j in range(0,len(parole)):
+    parole = un_testo.split(" ")
+    minuscolo = []
+    for j in range(0, len(parole)):
         minuscolo.append(parole[j].lower())
-    #rimozione delle stopwords
-    words_nostop=[word for word in minuscolo if word not in stop_words]
-    #rimozione della punteggiatura
-    words_nopunct= [word for word in words_nostop if word.isalnum()] 
-    #part of speach tagging
-    tagged_words=nltk.pos_tag(words_nopunct) 
-    togli=eliminare(tagged_words)
-    togli= np.array(togli, dtype=int)
-    finali=list(np.array(words_nopunct)[togli==0])
-    #stemming
-    stemmed_words=[]
-    for w in finali:
-        stemmed_words.append(stemmer.stem(w))
-    finali=stemmed_words
-    #lemming
-    # lemmed_words=[]
-    # for w in finali:
-    #     lemmed_words.append(lem.lemmatize(w,"v"))
-    # finali=lemmed_words
-    return finali
+    # rimozione delle stopwords e della punteggiatura
+    words_nostop = [word for word in minuscolo if word not in stop_words and word.isalpha()]
+    # part of speach tagging
+    words_post_POS = part_of_speach_tagging(words_nostop)
+    # stemming
+    stemmed_words = []
+    for words in words_post_POS:
+        stemmed_words.append(stemmer.stem(words))
+    return stemmed_words
 
