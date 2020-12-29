@@ -8,18 +8,29 @@ def extraction(url):
     if r.status_code == 200:
         soup = BeautifulSoup(r.text, 'html.parser')
         sec = soup.find_all("section")
-        if len(sec) == 3:  ##belle, tipo URLS[0]
+        if len(sec) == 3: #formato bello, immagine + solo testo
             body_text = sec[2].text.strip()
-        elif len(sec) == 2:  ##brutte, tipo URLS[1]
+            if body_text == '': #formato bello ma non c'è alcun testo (grafici)
+                body_text = "sbagliata"
+        elif len(sec) == 2:  ##brutte, slide con porzioni di testo sotto ognuna
             slides = soup.find_all("div", class_="gallery-caption-text")
+            a = slides[0].text.strip()
             body_text = ""
-            for i in range(len(slides)):
-                a = slides[i].text.strip()
-                prova = re.sub(r"(\n+|\s+)", " ", a)
-                body_text += (prova)
-        else:  ##tipo il video URLS[182]
+            if slides[0].text.strip() is not '': # porzioni di testo trattate come caption
+                for i in range(len(slides)):
+                    a = slides[i].text.strip()
+                    prova = re.sub(r"(\n+|\s+)", " ", a)
+                    body_text += (prova)
+            else: #porzioni di testo trattate come titoli
+                slides = soup.find_all("div", class_="gallery-title-text")
+                for i in range(len(slides)):
+                    a = slides[i].text.strip()
+                    prova = re.sub(r"(\n+|\s+)", " ", a)
+                    body_text += (prova)
+        else:  # formato con video + breve caption
             body_text = "sbagliata"
     return body_text
+
 
 import nltk
 from nltk.corpus import stopwords
