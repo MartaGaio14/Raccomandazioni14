@@ -1,26 +1,25 @@
 righe = 1000  # numero di utenti da campionare
-Ntfidf = 500  # lunghezza massima della rappresentazione in tfidf
 N = 10  # numero di news da raccomandare
 
 ##nome file dataset delle news coi body estratti
 filename_body = "testi.csv"
 
 ##nome file modello lda (da scrivere)
-filename_lda = 'lda_model_snow1000.sav'
+filename_lda = 'lda_model.sav'
 
 ##nome file risultati similarità (da scrivere)
-filename_sim = "risultati1000.csv"
-
+filename_sim = "risultati.csv"
 
 ###########FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_test######################
 
 ######## apertura del file
 import pandas
 import tqdm
+
 Set = open("behaviors_test.tsv")
 Set1 = pandas.read_csv(Set, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1, 3])
 Set.close()
-#pulizia del dataset
+# pulizia del dataset
 GrandeSet = Set1.dropna()
 GrandeSet = GrandeSet.reset_index(drop=True)
 GrandeSet.info(null_counts=True)
@@ -29,27 +28,28 @@ for i in tqdm.tqdm(range(len(GrandeSet))):
     a = GrandeSet.History[i].split(" ")
     if len(a) > 100:
         l.append(i)
-Set_piu100 = GrandeSet.loc[l] # sono rimasti 229 121 utenti (behaviours ridotto) // 92 970 utenti se len=150
+Set_piu100 = GrandeSet.loc[l]  # sono rimasti 229 121 utenti (behaviours ridotto) // 92 970 utenti se len=150
 Set_piu100 = Set_piu100.reset_index(drop=True)
 
-#campionamento casuale di 1000 utenti tra quelli con History maggiori di 100
+# campionamento casuale di 1000 utenti tra quelli con History maggiori di 100
 import numpy as np
+
 np.random.seed(122020)
-campione=np.random.randint(0, len(Set_piu100), righe)
-dati_camp= Set_piu100.loc[campione]
+campione = np.random.randint(0, len(Set_piu100), righe)
+dati_camp = Set_piu100.loc[campione]
 dati_camp = dati_camp.reset_index(drop=True)
 
-Hist=[] #lista di liste news per utente
-Id_utente=[] #lista id utenti
+Hist = []  # lista di liste news per utente
+Id_utente = []  # lista id utenti
 for i in range(len(dati_camp)):
-    a=dati_camp.History[i].split(" ")
+    a = dati_camp.History[i].split(" ")
     Hist.append(a)
     Id_utente.append(dati_camp.UID[i])
 
 ######## eliminiamo le news poblematiche ( qualora facessero parte del campione )
 ###### vedi file controllo_url.py
-#le news che sono risultate prive di URL sono "N113363", "N110434", "N102010", "N45635"
-#le news che compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
+# le news che sono risultate prive di URL sono "N113363", "N110434", "N102010", "N45635"
+# le news che compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
 
 for i in range(len(Hist)):
     if Hist[i].count("N113363") > 0:
@@ -68,8 +68,8 @@ for i in range(len(Hist)):
 ##creiamo il corpus completo delle news lette dai 1000 utenti campionati (senza ripetizioni)
 tutteNID = []
 for i in range(len(Hist)):
-    tutteNID+= Hist[i]
-tutteNID=list(dict.fromkeys(tutteNID))
+    tutteNID += Hist[i]
+tutteNID = list(dict.fromkeys(tutteNID))
 
 #########################FILE CON LE INFORMAZIONI SULLE NEWS: news_test#########################
 
@@ -83,64 +83,66 @@ read_news = read_news.dropna()
 read_news.info(null_counts=True)
 read_news = read_news.reset_index(drop=True)
 
-
 # dal dataset completo vengono selezionate solo le righe contenenti le news che sono in tutteNID
-
-a=[]#lista degli indici delle righe del dataframe da tenere
-for i in tqdm.tqdm(range(len(read_news.ID))):
-    if read_news.ID[i] in tutteNID:
-        a.append(i)
-news=read_news.loc[a]
-news= news.reset_index(drop=True)
-
+news = pandas.DataFrame()
+for i in tqdm.tqdm(range(0, len(tutteNID))):
+    a = read_news.loc[read_news["ID"] == tutteNID[i]]
+    news = pandas.concat([news, a], ignore_index=True)  # nuovo dataset
 
 URLS = list(news.URL)
-# with open("url_file.txt", 'w') as f:
-#    for url in URLS:
-#        f.write("%s\n" % url)
 
-##estrazione del testo
-
+##estrazione del testi
 import csv
-import time
-from preprocessing import extraction
+from preprocessing import extraction, preprocessing1
 
-with open(filename_body, "w", encoding="Utf-8") as file:
+with open("testi.csv", "w", encoding="Utf-8") as file:
     writer = csv.writer(file, delimiter="\t")
-    for i in tqdm.tqdm(range(len(URLS[0:100]))):
+    for i in tqdm.tqdm(range(len(URLS))):
         writer.writerow([news.ID[i], extraction(URLS[i])])
 
-print("Fatto web-scraping")
+# preprocessing sequenziale
+testi = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False, sep="\t")
+texts = []
+for i in tqdm.tqdm(range(len(testi.Testo))):
+    texts.append(preprocessing1(testi.Testo[i]))
 
 #######DA TERMINALE: PREPROCESSING CON MAP REDUCE
-# python MapReduce.py testi.csv > testi_proc.csv
+# python3 MapReduce.py testi.csv > testi_proc.csv
 # testi_proc conterrà i testi preprocessati
 
-######## apertura file testi preprocessati
-TESTI = pandas.read_csv("risultati.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
 
-##rimuoviamo da TESTI e da Hist le news con video
-IDvideo=[] #lista con id delle news con video
-posvideo=[] #lista con posizioni delle news con video
-for i in tqdm.tqdm(range(len(TESTI.Testo))):
-    if TESTI.Testo[i]=="sbagliata":
-        IDvideo.append(TESTI.ID[i])
+######## apertura file testi preprocessati
+testi_proc = pandas.read_csv("testi_proc.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
+
+##rimuoviamo da testi_proc e da Hist le news con video
+IDvideo = []  # lista con id delle news con video
+posvideo = []  # lista con posizioni delle news con video
+for i in tqdm.tqdm(range(len(testi_proc.parole))):
+    if testi_proc.parole[i] == '[0]':
+        IDvideo.append(testi_proc.ID[i])
         posvideo.append(i)
 
-TESTI=TESTI.drop(posvideo)
+testi_proc = testi_proc.drop(posvideo)
+testi_proc = testi_proc.reset_index(drop=True)
 
+import re
+
+parole = []  # lista delle parole preprocessate per ogni testo
+for i in range(len(testi_proc)):
+    a = re.sub(r"([^a-zA-Z & \s])", "", testi_proc.parole[i])
+    parole.append(a.split(" "))
+
+# rimuovere anche da Hist gli ID delle news eliminate post-estrazione
 for storia in tqdm.tqdm(Hist):
+    rem = []
     for news in storia:
         if news in IDvideo:
-            storia.remove(news)
-
-####### preprocessing per tutti i testi
-
-print("Fatto preprocessing")
-
+            rem.append(news)
+    for x in rem:
+        storia.remove(x)
 
 ######## divisione in training set e test set del corpus delle news
-#(viene mantenuta la divisione delle History rispetto ad ogni utente)
+# (viene mantenuta la divisione delle History rispetto ad ogni utente)
 n_test = []
 n_training = []
 for i in range(len(Hist)):
@@ -167,62 +169,63 @@ for i in range(len(n_test)):
     Storie_test.extend(n_test[i])
 S_norep2 = list(dict.fromkeys(Storie_test))
 
-# inizio = time.time()
-# N_CPU = mp.cpu_count()
-# pool = mp.Pool(processes=N_CPU)
-# testi_web = pool.map(extraction, URLS[0:1000])
-# pool.close()
-# pool.join()
-# fine = time.time()
-
 ###### divisione dei testi processati in training e test
-testi_train=[]
-testi_test=[]
-for i in range(len(TESTI.ID)):
-    if TESTI.ID[I] in S_norep:
-        testi_train.append(texts[i])
-    else
-        testi_test.append(texts[i])
-
-
-texts_train = texts[0:len(S_norep) - 1]
-texts_test = texts[len(S_norep):len(texts) - 1]
+testi_train = []
+testi_test = []
+for i in tqdm.tqdm(range(len(testi_proc.ID))):
+    if testi_proc.ID[i] in S_norep:
+        testi_train.append(parole[i])
+    else:
+        testi_test.append(parole[i])
 
 ######## Rappresentazione in LDA per le news di training
 
-##creazione del corpus
-# frequenza di ogni parola
-frequency = defaultdict(int)
-for text in texts_train:
-    for token in text:
-        frequency[token] += 1
-# teniamo solo le parole che si ripetono più di una volta
-processed_corpus = [[token for token in text if frequency[token] > 1]
-                    for text in texts_train]
-# a ogni parola associamo un numero
-dictionary = corpora.Dictionary(processed_corpus)
-# a ogni numero corrispondente alle parole si associa la frequenza
-corpus = [dictionary.doc2bow(text) for text in processed_corpus]
-
 ##alleniamo il modello e lo salviamo su file... PARTE DA NON FAR GIRARE
+from gensim import models
+import pickle
+from LDA import LDA_corpus
 
-ldamodel = models.LdaMulticore(corpus, num_topics=100, id2word=dictionary, passes=20, workers=4)
+corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
+ldamodel = models.LdaMulticore(corpus_train, num_topics=100, id2word=dictionary, passes=20, workers=4)
 pickle.dump(ldamodel, open(filename_lda, 'wb'))  # per salvare il modello su file
 
-print("Allenata l'LDA")
 # carichiamo il file col modello allenato
 # ldamodel = pickle.load(open(filename_lda, 'rb'))
+# rappresentazione in dimesioni latenti di tutti i testi del corpus
+doc_lda_train = ldamodel[corpus_train]  # lista di liste
+lda_dict_train = []  # lista di dizionari (utile per risultati)
+for i in tqdm.tqdm(range(len(doc_lda_train))):
+    lda_dict_train.append(dict(doc_lda_train[i]))
 
-##appresentazione in dimesioni latenti di tutti i testi del corpus
+######## Rappresentazione in LDA per le news di test
+corpus_test = LDA_corpus(testi_test)  # creazione del corpus
 
-doc_lda = ldamodel[corpus]  # lista di liste
-lda_dict = []  # lista di dizionari (utile per risultati)
-for i in tqdm.tqdm(range(len(doc_lda))):
-    lda_dict.append(dict(doc_lda[i]))
+# rappresentazione in dimesioni latenti di tutti i testi del corpus di test sulla base del modello allenato
+doc_lda_test = ldamodel[corpus_test]  # lista di liste
+
+lda_dict_test = []  # lista di dizionari
+for i in tqdm.tqdm(range(len(doc_lda_test))):
+    lda_dict_test.append(dict(doc_lda_test[i]))
 
 ######## Rappresentazione in TFIDF per le news di training
+from tfidf import TFIDF, IDF
+from functools import partial
+import multiprocessing as mp
 
-doc_tfidf = TF_IDF(texts_train)
+idf_train = IDF(testi_train)
+tfidf_train = TFIDF(testi_train, idf_train)
+
+N_CPU = mp.cpu_count()
+pool = mp.Pool(processes=N_CPU)
+func = partial(TFIDF, idf_train)
+tfidf_train = pool.map(func, testi_train)
+pool.close()
+pool.join()
+
+######## Rappresentazione in TFIDF per le news di test
+# idf calcolato su dataset di training
+tfidf_test = TFIDF(testi_test, idf_train)
+
 
 ######## Content based profile
 
@@ -235,34 +238,8 @@ print("Calcolati profili utenti TFIDF")
 
 ############################# Lavoriamo sul DATASET DI TEST#####################
 
-######## Rappresentazione in LDA per le news di test
 
-##creazione del corpus
-# frequenza di ogni parola
-frequency2 = defaultdict(int)
-for text in texts_test:
-    for token in text:
-        frequency2[token] += 1
-# teniamo solo le parole che si ripetono più di una volta
-processed_corpus2 = [[token for token in text if frequency2[token] > 1]
-                     for text in texts_test]
-# a ogni parola associamo un numero
-dictionary2 = corpora.Dictionary(processed_corpus2)
-# a ogni numero corrispondente alle parole si associa la frequenza
-corpus2 = [dictionary2.doc2bow(text) for text in processed_corpus2]
 
-##appresentazione in dimesioni latenti di tutti i testi del corpus
-
-doc_lda2 = ldamodel[corpus2]  # lista di liste
-
-lda_dict2 = []  # lista di dizionari
-for i in tqdm.tqdm(range(len(doc_lda2))):
-    lda_dict2.append(dict(doc_lda2[i]))
-
-######## Rappresentazione in TFIDF per le news di training
-doc2_tfidf = TF_IDF(texts_test)
-
-print("Calcolate lda e tfidf news di test")
 ############################# RACCOMANDAZIONI#####################################
 
 # crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave)
@@ -304,19 +281,3 @@ for u in tqdm.tqdm(range(len(n_test))):
 
 print("PRECISIONE")
 print(precision / righe)
-
-
-
-from collections import defaultdict
-from gensim import corpora, models
-import pickle
-import time
-
-
-
-# importiamo i moduli da noi creati
-from preprocessing import *
-from tfidf import *
-from profili_utenti import utenti_tfidf_par, utenti_tfidf
-from profili_utenti import utenti_lda
-from similarita import similarità
