@@ -9,27 +9,29 @@ def extraction(url):
         soup = BeautifulSoup(r.text, 'html.parser')
         sec = soup.find_all("section")
         if len(sec) == 3: #formato bello, immagine + solo testo
-            body_text = sec[2].text.strip()
+            a = sec[2].text.strip()
+            body_text = re.sub(r"(\n+|\s+)", " ", a)
             if body_text == '': #formato bello ma non c'è alcun testo (grafici)
                 body_text = "sbagliata"
         elif len(sec) == 2:  ##brutte, slide con porzioni di testo sotto ognuna
             slides = soup.find_all("div", class_="gallery-caption-text")
             a = slides[0].text.strip()
             body_text = ""
-            if slides[0].text.strip() is not '': # porzioni di testo trattate come caption
+            if a != '': # porzioni di testo trattate come caption
                 for i in range(len(slides)):
-                    a = slides[i].text.strip()
-                    prova = re.sub(r"(\n+|\s+)", " ", a)
-                    body_text += (prova)
+                    b = slides[i].text.strip()
+                    prova = re.sub(r"(\n+|\s+)", " ", b)
+                    body_text += prova
             else: #porzioni di testo trattate come titoli
-                slides = soup.find_all("div", class_="gallery-title-text")
+                slides = soup.find_all("h2", class_="gallery-title-text")
                 for i in range(len(slides)):
-                    a = slides[i].text.strip()
-                    prova = re.sub(r"(\n+|\s+)", " ", a)
-                    body_text += (prova)
+                    b = slides[i].text.strip()
+                    prova = re.sub(r"(\n+|\s+)", " ", b)
+                    body_text += prova
         else:  # formato con video + breve caption
             body_text = "sbagliata"
     return body_text
+
 
 
 import nltk
@@ -78,7 +80,8 @@ def preprocessing1(un_testo):
     parole = un_testo.split(" ")
     minuscolo = []
     for j in range(0, len(parole)):
-        minuscolo.append(parole[j].lower())
+        a = re.sub(r"[^a-zA-Z]", "", parole[j]) #elimina i caratteri strambi
+        minuscolo.append(a.lower())
     # rimozione delle stopwords e della punteggiatura
     words_nostop = [word for word in minuscolo if word not in stop_words and word.isalpha()]
     # part of speach tagging
@@ -88,4 +91,3 @@ def preprocessing1(un_testo):
     for words in words_post_POS:
         stemmed_words.append(stemmer.stem(words))
     return stemmed_words
-
