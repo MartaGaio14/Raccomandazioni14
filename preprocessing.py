@@ -76,13 +76,16 @@ def part_of_speach_tagging(words):
 # STEMMING
 stemmer = PorterStemmer()
 
+
 def preprocessing1(un_testo):
-    parole = un_testo.split(" ")
+    #rimozione della punteggiatura pre-split
+    # (spesso punteggiatura usata per divdere le parole, senza ulteriori spazi)
+    un_testo = re.sub(r"(\.|,|:|;|!|\?)", " ", un_testo)
+    parole = re.split(r"\s+", un_testo)
     minuscolo = []
     for j in range(0, len(parole)):
-        a = re.sub(r"[^a-zA-Z]", "", parole[j]) #elimina i caratteri strambi
-        minuscolo.append(a.lower())
-    # rimozione delle stopwords e della punteggiatura
+        minuscolo.append(parole[j].lower())
+    # rimozione delle stopwords
     words_nostop = [word for word in minuscolo if word not in stop_words and word.isalpha()]
     # part of speach tagging
     words_post_POS = part_of_speach_tagging(words_nostop)
@@ -91,3 +94,4 @@ def preprocessing1(un_testo):
     for words in words_post_POS:
         stemmed_words.append(stemmer.stem(words))
     return stemmed_words
+
