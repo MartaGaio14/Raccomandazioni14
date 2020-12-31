@@ -100,11 +100,24 @@ with open("testi.csv", "w", encoding="Utf-8") as file:
     for i in tqdm.tqdm(range(len(URLS))):
         writer.writerow([news.ID[i], extraction(URLS[i])])
 
+# preprocessing calcolo parallelo
+# import multiprocessing as mp
+# import time
+#
+# testiweb=pandas.read_csv("testi.csv", names=["ID", "testo"], header=None, error_bad_lines=False, sep="\t")
+# inizio=time.time()
+# N_CPU = mp.cpu_count()
+# pool=mp.Pool(processes=N_CPU)
+# texts2=pool.map(preprocessing1, list(testiweb.testo))
+# pool.close()
+# pool.join()
+# fine=time.time()
+# print(fine-inizio)
+
 # preprocessing sequenziale
-testi = pandas.read_csv("testi.csv", names=["ID", "Testo"], header=None, error_bad_lines=False, sep="\t")
-texts = []
-for i in tqdm.tqdm(range(len(testi.Testo))):
-    texts.append(preprocessing1(testi.Testo[i]))
+# texts = []
+# for i in tqdm.tqdm(range(len(testiweb.testo))):
+#     texts.append(preprocessing1(testiweb.testo[i]))
 
 #######DA TERMINALE: PREPROCESSING CON MAP REDUCE
 # python3 MapReduce.py testi.csv > testi_proc.csv
@@ -112,7 +125,7 @@ for i in tqdm.tqdm(range(len(testi.Testo))):
 
 
 ######## apertura file testi preprocessati
-testi_proc = pandas.read_csv("testi_proc.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
+testi_proc = pandas.read_csv("testi_proc2.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
 
 ##rimuoviamo da testi_proc e da Hist le news con video
 IDvideo = []  # lista con id delle news con video
@@ -186,41 +199,31 @@ import pickle
 from LDA import LDA_corpus
 
 corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
-ldamodel = models.LdaMulticore(corpus_train, num_topics=100, id2word=dictionary, passes=20, workers=4)
+ldamodel = models.LdaMulticore(corpus_train, num_topics=100, id2word=dictionary, passes=20, workers=2)
 pickle.dump(ldamodel, open(filename_lda, 'wb'))  # per salvare il modello su file
 
 # carichiamo il file col modello allenato
-# ldamodel = pickle.load(open(filename_lda, 'rb'))
+ldamodelp = pickle.load(open(filename_lda, 'rb'))
 # rappresentazione in dimesioni latenti di tutti i testi del corpus
-doc_lda_train = ldamodel[corpus_train]  # lista di liste
+doc_lda_train = ldamodelp[corpus_train]  # lista di liste
 lda_dict_train = []  # lista di dizionari (utile per risultati)
 for i in tqdm.tqdm(range(len(doc_lda_train))):
     lda_dict_train.append(dict(doc_lda_train[i]))
 
 ######## Rappresentazione in LDA per le news di test
-corpus_test = LDA_corpus(testi_test)  # creazione del corpus
+corpus_test, dictionary= LDA_corpus(testi_test)  # creazione del corpus
 
 # rappresentazione in dimesioni latenti di tutti i testi del corpus di test sulla base del modello allenato
-doc_lda_test = ldamodel[corpus_test]  # lista di liste
-
+doc_lda_test = ldamodelp[corpus_test]  # lista di liste
 lda_dict_test = []  # lista di dizionari
 for i in tqdm.tqdm(range(len(doc_lda_test))):
     lda_dict_test.append(dict(doc_lda_test[i]))
 
 ######## Rappresentazione in TFIDF per le news di training
 from tfidf import TFIDF, IDF
-from functools import partial
-import multiprocessing as mp
 
-idf_train = IDF(testi_train)
+idf_train = IDF(testi_train, testi_test)
 tfidf_train = TFIDF(testi_train, idf_train)
-
-N_CPU = mp.cpu_count()
-pool = mp.Pool(processes=N_CPU)
-func = partial(TFIDF, idf_train)
-tfidf_train = pool.map(func, testi_train)
-pool.close()
-pool.join()
 
 ######## Rappresentazione in TFIDF per le news di test
 # idf calcolato su dataset di training
