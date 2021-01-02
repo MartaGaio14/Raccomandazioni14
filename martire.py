@@ -132,7 +132,6 @@ testi_proc = testi_proc.drop(posvideo)
 testi_proc = testi_proc.reset_index(drop=True)
 
 import re
-
 parole = []  # lista delle parole preprocessate per ogni testo
 for i in range(len(testi_proc)):
     a = re.sub(r"([^a-zA-Z & \s])", "", testi_proc.parole[i])
@@ -150,7 +149,7 @@ for storia in tqdm.tqdm(Hist):
 ######## divisione in training set e test set del corpus delle news
 # (viene mantenuta la divisione delle History rispetto ad ogni utente)
 n_test = []
-n_training = []
+n_train = []
 for i in range(len(Hist)):
     a = int(len(Hist[i]) * 0.8)
     temp_train = []
@@ -160,7 +159,7 @@ for i in range(len(Hist)):
             temp_train.append(Hist[i][j])
         else:
             temp_test.append(Hist[i][j])
-    n_training.append(temp_train)
+    n_train.append(temp_train)
     n_test.append(temp_test)
 
 ##lista di tutte le news del training set che sono state lette dalla totalità degli utenti campionati
@@ -173,16 +172,20 @@ S_norep = list(dict.fromkeys(Storie_train))
 Storie_test = []
 for i in range(len(n_test)):
     Storie_test.extend(n_test[i])
-S_norep2 = list(dict.fromkeys(Storie_test))
+##S_norep2 = list(dict.fromkeys(Storie_test))
 
 ###### divisione dei testi processati in training e test
 testi_train = []
+ID_train=[]
 testi_test = []
+ID_test=[]
 for i in tqdm.tqdm(range(len(testi_proc.ID))):
     if testi_proc.ID[i] in S_norep:
         testi_train.append(parole[i])
+        ID_train.append(testi_proc.ID[i])
     else:
         testi_test.append(parole[i])
+        ID_test.append(testi_proc.ID[i])
 
 ######## Rappresentazione in LDA per le news di training
 
@@ -193,37 +196,32 @@ from LDA import LDA_corpus
 
 corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
 ldamodel = models.LdaMulticore(corpus_train, num_topics=100, id2word=dictionary, passes=20, workers=2)
-pickle.dump(ldamodel, open('lda_model.sav', 'wb'))  # per salvare il modello su file
+pickle.dump(ldamodel, open('lda_model_ada.sav', 'wb'))  # per salvare il modello su file
 
 # carichiamo il file col modello allenato
-ldamodelp = pickle.load(open('lda_model.sav', 'rb'))
+ldamodel = pickle.load(open('lda_model_ada.sav', 'rb'))
 
-if __name__ == '__main__':
-
-
-
-from pprint import pprint
-pprint(ldamodelp.print_topics())
-coherence_model_lda = models.CoherenceModel(model=ldamodelp, texts=corpus_train, dictionary=dictionary, coherence='c_v')
-coherence_lda = coherence_model_lda.get_coherence()
-print('\nCoherence Score: ', coherence_lda)
-
+# from pprint import pprint
+# pprint(ldamodel.print_topics())
+#
+# coherence_model_lda = models.CoherenceModel(model=ldamodel, texts=corpus_train, dictionary=dictionary, coherence='c_v')
+# coherence_lda = coherence_model_lda.get_coherence()
+# print('\nCoherence Score: ', coherence_lda)
 
 
 # rappresentazione in dimensioni latenti di tutti i testi del corpus
-doc_lda_train = ldamodelp[corpus_train]  # lista di liste
-lda_dict_train = []  # lista di dizionari (utile per risultati)
-for d in tqdm.tqdm(doc_lda_train):
-    lda_dict_train.append(dict(doc_lda_train[i]))
-
+lda_train = ldamodel[corpus_train]  # lista di liste
+# lda_dict_train = []  # lista di dizionari
+# for i in tqdm.tqdm(range(len(doc_lda_train))):
+#     lda_dict_train.append(dict(doc_lda_train[i]))
 ######## Rappresentazione in LDA per le news di test
 corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus
 
 # rappresentazione in dimesioni latenti di tutti i testi del corpus di test sulla base del modello allenato
-doc_lda_test = ldamodelp[corpus_test]  # lista di liste
-lda_dict_test = []  # lista di dizionari
-for i in tqdm.tqdm(range(len(doc_lda_test))):
-    lda_dict_test.append(dict(doc_lda_test[i]))
+lda_test = ldamodel[corpus_test]  # lista di liste
+# lda_dict_test = []  # lista di dizionari
+# for i in tqdm.tqdm(range(len(doc_lda_test))):
+#     lda_dict_test.append(dict(doc_lda_test[i]))
 
 ######## Rappresentazione in TFIDF per le news di training
 from tfidf import TFIDF, IDF
@@ -235,19 +233,14 @@ tfidf_train = TFIDF(testi_train, idf_train)
 # idf calcolato su dataset di training
 tfidf_test = TFIDF(testi_test, idf_train)
 
-
 ######## Content based profile
-from profili_utenti import utenti_lda, utenti_tfidf_par
-
 # in rappresentazione lda
-u_profile_lda = utenti_lda(Hist, doc_lda_test, S_norep)
-print("Calcolati profili utenti LDA")
+profili_lda=[]
+for storia in tqdm.tqdm(n_train):
+    profili_lda.append(profilo(storia, lda_train, ID_train))
+
 # in rappresentazione tfidf
 u_profile_tfidf = utenti_tfidf_par(Hist, tfidf_test, S_norep)
-print("Calcolati profili utenti TFIDF")
-
-
-
 
 ############################# RACCOMANDAZIONI#####################################
 from similarita import similarità
