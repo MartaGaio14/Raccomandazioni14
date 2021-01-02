@@ -1,15 +1,6 @@
 righe = 1000  # numero di utenti da campionare
 N = 10  # numero di news da raccomandare
 
-##nome file dataset delle news coi body estratti
-filename_body = "testi.csv"
-
-##nome file modello lda (da scrivere)
-filename_lda = 'lda_model.sav'
-
-##nome file risultati similarità (da scrivere)
-filename_sim = "risultati.csv"
-
 ###########FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_test######################
 
 ######## apertura del file
@@ -84,10 +75,12 @@ read_news.info(null_counts=True)
 read_news = read_news.reset_index(drop=True)
 
 # dal dataset completo vengono selezionate solo le righe contenenti le news che sono in tutteNID
-news = pandas.DataFrame()
-for i in tqdm.tqdm(range(0, len(tutteNID))):
-    a = read_news.loc[read_news["ID"] == tutteNID[i]]
-    news = pandas.concat([news, a], ignore_index=True)  # nuovo dataset
+a=[]#lista degli indici delle righe del dataframe da tenere
+for i in tqdm.tqdm(range(len(read_news.ID))):
+    if read_news.ID[i] in tutteNID:
+        a.append(i)
+news = read_news.loc[a]
+news = news.reset_index(drop=True)
 
 URLS = list(news.URL)
 
@@ -125,7 +118,7 @@ with open("testi.csv", "w", encoding="Utf-8") as file:
 
 
 ######## apertura file testi preprocessati
-testi_proc = pandas.read_csv("testi_proc2.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
+testi_proc = pandas.read_csv("testi_proc.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
 
 ##rimuoviamo da testi_proc e da Hist le news con video
 IDvideo = []  # lista con id delle news con video
@@ -200,18 +193,31 @@ from LDA import LDA_corpus
 
 corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
 ldamodel = models.LdaMulticore(corpus_train, num_topics=100, id2word=dictionary, passes=20, workers=2)
-pickle.dump(ldamodel, open(filename_lda, 'wb'))  # per salvare il modello su file
+pickle.dump(ldamodel, open('lda_model.sav', 'wb'))  # per salvare il modello su file
 
 # carichiamo il file col modello allenato
-ldamodelp = pickle.load(open(filename_lda, 'rb'))
-# rappresentazione in dimesioni latenti di tutti i testi del corpus
+ldamodelp = pickle.load(open('lda_model.sav', 'rb'))
+
+if __name__ == '__main__':
+
+
+
+from pprint import pprint
+pprint(ldamodelp.print_topics())
+coherence_model_lda = models.CoherenceModel(model=ldamodelp, texts=corpus_train, dictionary=dictionary, coherence='c_v')
+coherence_lda = coherence_model_lda.get_coherence()
+print('\nCoherence Score: ', coherence_lda)
+
+
+
+# rappresentazione in dimensioni latenti di tutti i testi del corpus
 doc_lda_train = ldamodelp[corpus_train]  # lista di liste
 lda_dict_train = []  # lista di dizionari (utile per risultati)
-for i in tqdm.tqdm(range(len(doc_lda_train))):
+for d in tqdm.tqdm(doc_lda_train):
     lda_dict_train.append(dict(doc_lda_train[i]))
 
 ######## Rappresentazione in LDA per le news di test
-corpus_test, dictionary= LDA_corpus(testi_test)  # creazione del corpus
+corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus
 
 # rappresentazione in dimesioni latenti di tutti i testi del corpus di test sulla base del modello allenato
 doc_lda_test = ldamodelp[corpus_test]  # lista di liste
@@ -231,23 +237,23 @@ tfidf_test = TFIDF(testi_test, idf_train)
 
 
 ######## Content based profile
+from profili_utenti import utenti_lda, utenti_tfidf_par
 
 # in rappresentazione lda
-u_profile_lda = utenti_lda(Hist, doc_lda, S_norep)
+u_profile_lda = utenti_lda(Hist, doc_lda_test, S_norep)
 print("Calcolati profili utenti LDA")
 # in rappresentazione tfidf
-u_profile_tfidf = utenti_tfidf_par(Hist, doc_tfidf, S_norep)
+u_profile_tfidf = utenti_tfidf_par(Hist, tfidf_test, S_norep)
 print("Calcolati profili utenti TFIDF")
 
-############################# Lavoriamo sul DATASET DI TEST#####################
 
 
 
 ############################# RACCOMANDAZIONI#####################################
-
+from similarita import similarità
 # crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave)
 
-with open(filename_sim, "w") as file:
+with open("risultati.csv", "w") as file:
     writer = csv.writer(file)
     for i in tqdm.tqdm(range(len(u_profile_lda))):  # gira sui 1000 utenti
         for j in range(len(lda_dict2)):  # gira sulle nuove news
