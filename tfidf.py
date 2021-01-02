@@ -14,7 +14,6 @@ def CountFreq(word_list):
             word_dict[word] += 1
     return word_dict
 
-
 def IDF(testi_train, testi_test):
     frequency = defaultdict(int)
     N = len(testi_train)
