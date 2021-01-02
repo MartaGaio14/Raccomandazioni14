@@ -164,8 +164,8 @@ for i in range(len(Hist)):
 
 ##lista di tutte le news del training set che sono state lette dalla totalità degli utenti campionati
 Storie_train = []
-for i in range(len(n_training)):
-    Storie_train.extend(n_training[i])
+for i in range(len(n_train)):
+    Storie_train.extend(n_train[i])
 S_norep = list(dict.fromkeys(Storie_train))
 
 ##lista di tutte le news del test set che sono state lette dalla totalità degli utenti campionati
@@ -234,10 +234,20 @@ tfidf_train = TFIDF(testi_train, idf_train)
 tfidf_test = TFIDF(testi_test, idf_train)
 
 ######## Content based profile
+from profili_utenti import profilo
+
+diz_lda_train={}
+for i in tqdm.tqdm(range(len(ID_train))):
+    diz_lda_train[ID_train[i]]=lda_train[i]
+
 # in rappresentazione lda
-profili_lda=[]
+
+profili_lda= []
 for storia in tqdm.tqdm(n_train):
-    profili_lda.append(profilo(storia, lda_train, ID_train))
+    profili_lda.append(profilo(storia, diz_lda_train))
+
+for i in tqdm.tqdm(range(len(n_train))):
+    profili_lda[ID_train[i]]=profilo(n_train[i], diz_lda_train)
 
 # in rappresentazione tfidf
 u_profile_tfidf = utenti_tfidf_par(Hist, tfidf_test, S_norep)
