@@ -25,38 +25,15 @@ def IDF(testi_train, testi_test):
     chiavi = frequency.keys()
     for chiave in chiavi:
             idf[chiave] = np.log10(N/frequency[chiave])
-    parole_train = idf_train.keys()
+    parole_train = idf.keys()
     allwords = []  # lista parole singole del corpus del training set con ripetizioni
     for testo in testi_test:
         allwords.extend(testo)
     parole_test = list(dict.fromkeys(allwords))
     for parola in parole_test:
         if parola not in parole_train:
-            idf_train[parola] = 0
+            idf[parola] = 0
     return idf
-
-
-#########questa su un testo solo (per parallelizzare)
-#
-# def TFIDF(testo, idf):
-#     doc = CountFreq(testo)
-#     k=list(doc.keys()) #lista delle parole
-#     tfidf_doc=[]
-#     for i in range(len(doc)):# i è una parola nel documento
-#         i=0
-#         max_f=max(list(doc.values())) #parola con massima freq nel documento
-#         tf=doc[k[i]]/max_f #numero di occorrenze del termine i nel documento /max_f
-#         if k[i] in list(idf.keys()):
-#             tfidf_doc.append([k[i], tf*idf[k[i]]])
-#         else:
-#             tfidf_doc.append([k[i], 0])
-#     tfidf_doc = dict(tfidf_doc)
-#     if len(tfidf_doc)>750:
-#         tfidf_doc = sorted(tfidf_doc.items(), key=lambda item: item[1], reverse=True)[0:750]
-#         #ordina gli elementi del dizionario e la chiave di ordinamento è il peso tfidf (cioè item[1] nella coppia chiave-valore)
-#     return tfidf_doc
-
-
 
 def TFIDF(texts, idf):
     tot_doc = []  # lista di dizionari freq per ogni documento
@@ -79,11 +56,23 @@ def TFIDF(texts, idf):
             tfidf_corpus.append(tfidf_doc)
     return tfidf_corpus
 
-# allwords = []
-# for z in range(0, len(testi_train)):
-#     norep = np.unique(testi_train[z])
-#     allwords.extend(norep)
-# n_i = CountFreq(allwords)
-# N = len(testi_train)
-# num = 750
-# doc_tfidf = TFIDF_par(testi_train, N, n_i, num)
+#########questa su un testo solo (per parallelizzare)
+#
+# def TFIDF(testo, idf):
+#     doc = CountFreq(testo)
+#     k=list(doc.keys()) #lista delle parole
+#     tfidf_doc=[]
+#     for i in range(len(doc)):# i è una parola nel documento
+#         i=0
+#         max_f=max(list(doc.values())) #parola con massima freq nel documento
+#         tf=doc[k[i]]/max_f #numero di occorrenze del termine i nel documento /max_f
+#         if k[i] in list(idf.keys()):
+#             tfidf_doc.append([k[i], tf*idf[k[i]]])
+#         else:
+#             tfidf_doc.append([k[i], 0])
+#     tfidf_doc = dict(tfidf_doc)
+#     if len(tfidf_doc)>750:
+#         tfidf_doc = sorted(tfidf_doc.items(), key=lambda item: item[1], reverse=True)[0:750]
+#         #ordina gli elementi del dizionario e la chiave di ordinamento è il peso tfidf (cioè item[1] nella coppia chiave-valore)
+#     return tfidf_doc
+
