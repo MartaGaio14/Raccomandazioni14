@@ -3,35 +3,35 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
+
 def extraction(url):
     r = requests.get(url, timeout=10)
     if r.status_code == 200:
         soup = BeautifulSoup(r.text, 'html.parser')
         sec = soup.find_all("section")
-        if len(sec) == 3: #formato bello, immagine + solo testo
+        if len(sec) == 3:  # formato bello, immagine + solo testo
             a = sec[2].text.strip()
             body_text = re.sub(r"(\n+|\s+)", " ", a)
-            if body_text == '': #formato bello ma non c'è alcun testo (grafici)
+            if body_text == '':  # formato bello ma non c'è alcun testo (grafici)
                 body_text = "sbagliata"
         elif len(sec) == 2:  ##brutte, slide con porzioni di testo sotto ognuna
             slides = soup.find_all("div", class_="gallery-caption-text")
             a = slides[0].text.strip()
             body_text = ""
-            if a != '': # porzioni di testo trattate come caption
+            if a != '':  # porzioni di testo trattate come caption
                 for i in range(len(slides)):
                     b = slides[i].text.strip()
                     prova = re.sub(r"(\n+|\s+)", " ", b)
-                    body_text += prova
-            else: #porzioni di testo trattate come titoli
+                    body_text += " " + prova
+            else:  # porzioni di testo trattate come titoli
                 slides = soup.find_all("h2", class_="gallery-title-text")
                 for i in range(len(slides)):
                     b = slides[i].text.strip()
                     prova = re.sub(r"(\n+|\s+)", " ", b)
-                    body_text += prova
+                    body_text += " " + prova
         else:  # formato con video + breve caption
             body_text = "sbagliata"
     return body_text
-
 
 
 import nltk
@@ -73,12 +73,12 @@ def part_of_speach_tagging(words):
     pulite = [word for word in w if word not in da_togliere]
     return pulite
 
+
 # STEMMING
 stemmer = PorterStemmer()
 
-
 def preprocessing1(un_testo):
-    #rimozione della punteggiatura pre-split
+    # rimozione della punteggiatura pre-split
     # (spesso punteggiatura usata per divdere le parole, senza ulteriori spazi)
     un_testo = re.sub(r"(\.|,|:|;|!|\?)", " ", un_testo)
     parole = re.split(r"\s+", un_testo)

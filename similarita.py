@@ -1,21 +1,24 @@
-#funzioni per calcolare la similarità
+# funzioni per calcolare la similarità
 import numpy as np
 from numpy import linalg as LA
 
+
 def compara(dictU, dictA):
-    utente=[]
-    articolo=[]
+    utente = []
+    articolo = []
     for keyU in dictU:
         for keyA in dictA:
             if keyU == keyA:
                 utente.append(dictU[keyA])
                 articolo.append(dictA[keyA])
-    return utente,articolo
-            
-def CosSim(u, v):
-    dist = np.dot(u, v) / (LA.norm(u) * LA.norm(v))
-    return dist
+    return utente, articolo
 
-def similarità(dictU, dictA):
-    (a,b)=compara(dictU, dictA)
-    return CosSim(a,b)
+def cosSim(dictU, dictA):
+    (a, b) = compara(dictU, dictA)
+    num = np.dot(a, b)
+    # c = [v**2 for v in dictU.values()]
+    # d = [v**2 for v in dictA.values()]
+    den = LA.norm(list(dictU.values()))*LA.norm(list(dictA.values()))
+    return num/den
+
+

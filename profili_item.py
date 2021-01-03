@@ -78,3 +78,20 @@ def TFIDF(texts, idf):
 #         #ordina gli elementi del dizionario e la chiave di ordinamento è il peso tfidf (cioè item[1] nella coppia chiave-valore)
 #     return tfidf_doc
 
+
+#LDA
+from gensim import corpora
+
+def LDA_corpus(testi):
+    frequency = defaultdict(int)
+    for text in testi:
+        for token in text:
+            frequency[token] += 1
+    # teniamo solo le parole che si ripetono più di una volta
+    processed_corpus = [[token for token in text if frequency[token] > 1] for text in testi]
+    # a ogni parola associamo un numero
+    dictionary = corpora.Dictionary(processed_corpus)
+    # a ogni numero corrispondente alle parole si associa la frequenza
+    corpus = [dictionary.doc2bow(text) for text in processed_corpus]
+    return corpus, dictionary
+
