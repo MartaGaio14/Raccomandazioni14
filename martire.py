@@ -75,7 +75,7 @@ read_news.info(null_counts=True)
 read_news = read_news.reset_index(drop=True)
 
 # dal dataset completo vengono selezionate solo le righe contenenti le news che sono in tutteNID
-a=[]#lista degli indici delle righe del dataframe da tenere
+a = []  # lista degli indici delle righe del dataframe da tenere
 for i in tqdm.tqdm(range(len(read_news.ID))):
     if read_news.ID[i] in tutteNID:
         a.append(i)
@@ -132,6 +132,7 @@ testi_proc = testi_proc.drop(posvideo)
 testi_proc = testi_proc.reset_index(drop=True)
 
 import re
+
 parole = []  # lista delle parole preprocessate per ogni testo
 for i in range(len(testi_proc)):
     a = re.sub(r"([^a-zA-Z & \s])", "", testi_proc.parole[i])
@@ -176,9 +177,9 @@ for i in range(len(n_test)):
 
 ###### divisione dei testi processati in training e test
 testi_train = []
-ID_train=[]
+ID_train = []
 testi_test = []
-ID_test=[]
+ID_test = []
 for i in tqdm.tqdm(range(len(testi_proc.ID))):
     if testi_proc.ID[i] in S_norep:
         testi_train.append(parole[i])
@@ -195,30 +196,47 @@ import pickle
 from LDA import LDA_corpus
 
 corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
-ldamodel = models.LdaMulticore(corpus_train, num_topics=100, id2word=dictionary, passes=20, workers=2)
-pickle.dump(ldamodel, open('lda_model_ada.sav', 'wb'))  # per salvare il modello su file
+#ldamodel = models.LdaMulticore(corpus_train, num_topics=80, id2word=dictionary, passes=20, workers=3)
+#pickle.dump(ldamodel, open('lda_model80.sav', 'wb'))  # per salvare il modello su file
 
 # carichiamo il file col modello allenato
-ldamodel = pickle.load(open('lda_model_ada.sav', 'rb'))
+ldamodel100 = pickle.load(open('lda_model_ada.sav', 'rb'))
+ldamodel80 = pickle.load(open('lda_model80.sav', 'rb'))
 
-# from pprint import pprint
-# pprint(ldamodel.print_topics())
-#
-# coherence_model_lda = models.CoherenceModel(model=ldamodel, texts=corpus_train, dictionary=dictionary, coherence='c_v')
-# coherence_lda = coherence_model_lda.get_coherence()
-# print('\nCoherence Score: ', coherence_lda)
+#from pprint import pprint
+#pprint(ldamodel.print_topics())
 
+coherence_model_lda = models.CoherenceModel(model=ldamodel100, texts=testi_train, dictionary=dictionary, coherence='c_v')
+coherence_lda100 = coherence_model_lda.get_coherence()
+print('\nCoherence Score: ', coherence_lda100)
+
+coherence_model_lda = models.CoherenceModel(model=ldamodel80, texts=testi_train, dictionary=dictionary, coherence='c_v')
+coherence_lda80 = coherence_model_lda.get_coherence()
+print('\nCoherence Score: ', coherence_lda80)
+
+import pyLDAvis.gensim
+import pickle
+import pyLDAvis
+
+# Visualize the topics
+pyLDAvis.enable_notebook()
+LDAvis_prepared100 = pyLDAvis.gensim.prepare(ldamodel100, corpus_train, dictionary)
+pyLDAvis.show(LDAvis_prepared100)
+
+pyLDAvis.enable_notebook()
+LDAvis_prepared80 = pyLDAvis.gensim.prepare(ldamodel80, corpus_train, dictionary)
+pyLDAvis.show(LDAvis_prepared80)
 
 # rappresentazione in dimensioni latenti di tutti i testi del corpus
-lda_train = ldamodel[corpus_train]  # lista di liste
-# lda_dict_train = []  # lista di dizionari
-# for i in tqdm.tqdm(range(len(doc_lda_train))):
-#     lda_dict_train.append(dict(doc_lda_train[i]))
+lda_train = ldamodel100[corpus_train]  # lista di liste
+lda_dict_train = []  # lista di dizionari
+for i in lda_train:
+    lda_dict_train.append(dict(lda_train[i]))
 ######## Rappresentazione in LDA per le news di test
 corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus
 
 # rappresentazione in dimesioni latenti di tutti i testi del corpus di test sulla base del modello allenato
-lda_test = ldamodel[corpus_test]  # lista di liste
+lda_test = ldamodel100[corpus_test]  # lista di liste
 # lda_dict_test = []  # lista di dizionari
 # for i in tqdm.tqdm(range(len(doc_lda_test))):
 #     lda_dict_test.append(dict(doc_lda_test[i]))
@@ -236,24 +254,28 @@ tfidf_test = TFIDF(testi_test, idf_train)
 ######## Content based profile
 from profili_utenti import profilo
 
-diz_lda_train={}
+diz_lda_train = {}
 for i in tqdm.tqdm(range(len(ID_train))):
-    diz_lda_train[ID_train[i]]=lda_train[i]
+    diz_lda_train[ID_train[i]] = lda_train[i]
+
+diz_tfidf_train = {}
+for i in tqdm.tqdm(range(len(ID_train))):
+    diz_lda_train[ID_train[i]] = tfidf_train[i]
 
 # in rappresentazione lda
-
-profili_lda= []
+profili_lda = []
 for storia in tqdm.tqdm(n_train):
     profili_lda.append(profilo(storia, diz_lda_train))
 
 for i in tqdm.tqdm(range(len(n_train))):
-    profili_lda[ID_train[i]]=profilo(n_train[i], diz_lda_train)
+    profili_lda[ID_train[i]] = profilo(n_train[i], diz_lda_train)
 
 # in rappresentazione tfidf
 u_profile_tfidf = utenti_tfidf_par(Hist, tfidf_test, S_norep)
 
 ############################# RACCOMANDAZIONI#####################################
 from similarita import similarità
+
 # crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave)
 
 with open("risultati.csv", "w") as file:
