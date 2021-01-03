@@ -34,6 +34,7 @@ def IDF(testi_train, testi_test):
             idf[parola] = 0
     return idf
 
+
 def TFIDF(texts, idf):
     tot_doc = []  # lista di dizionari freq per ogni documento
     for z in range(0, len(texts)):
@@ -49,10 +50,11 @@ def TFIDF(texts, idf):
             tfidf_doc.append([k[i], tf*idf[k[i]] ])
         tfidf_doc=dict(tfidf_doc)
         if len(tfidf_doc)>750:
-            tfidf_corpus.append(dict(sorted(tfidf_doc.items(), key=lambda item: item[1], reverse=True)[0:750]))
+            tfidf_doc=(sorted(tfidf_doc.items(), key=lambda item: item[1], reverse=True)[0:750])
+            tfidf_corpus.append(list(tfidf_doc))
             #ordina gli elementi del dizionario e la chiave di ordinamento è il peso tfidf (cioè item[1] nella coppia chiave-valore)
         else:
-            tfidf_corpus.append(tfidf_doc)
+            tfidf_corpus.append(list(tfidf_doc.items()))
     return tfidf_corpus
 
 #########questa su un testo solo (per parallelizzare)
