@@ -15,20 +15,21 @@ def CountFreq(word_list):
     return word_dict
 
 def IDF(testi_train, testi_test):
-    frequency = defaultdict(int)
-    N = len(testi_train)
+    allwords = []  # lista parole singole per ogni documento
     for testo in testi_train:
-        for parola in testo:
-            frequency[parola] += 1
+        norep = list(dict.fromkeys(testo))
+        allwords.extend(norep)
+    n_i = CountFreq(allwords)  # numero di documenti che contengono un termine
+    N = len(testi_train)
     idf = defaultdict(int)
-    chiavi = frequency.keys()
+    chiavi = n_i.keys()
     for chiave in chiavi:
-            idf[chiave] = np.log10(N/frequency[chiave])
+            idf[chiave] = np.log10(N/n_i[chiave])
     parole_train = idf.keys()
-    allwords = []  # lista parole singole del corpus del training set con ripetizioni
+    allwords1 = []  # lista parole singole del corpus del training set con ripetizioni
     for testo in testi_test:
-        allwords.extend(testo)
-    parole_test = list(dict.fromkeys(allwords))
+        allwords1.extend(testo)
+    parole_test = list(dict.fromkeys(allwords1))
     for parola in parole_test:
         if parola not in parole_train:
             idf[parola] = 0
