@@ -2,15 +2,16 @@
 import numpy as np
 from numpy import linalg as LA
 
-
 def compara(dictU, dictA):
-    utente = []
-    articolo = []
-    for keyU in dictU:
-        for keyA in dictA:
-            if keyU == keyA:
-                utente.append(dictU[keyA])
-                articolo.append(dictA[keyA])
+    paroleu=dictU.keys()
+    parolea=dictA.keys()
+    paroleu_set = set(paroleu)
+    intersection = list(paroleu_set.intersection(parolea))
+    utente=[]
+    articolo =[]
+    for i in range(len(intersection)):
+        utente.append(dictU[intersection[i]])
+        articolo.append(dictA[intersection[i]])
     return utente, articolo
 
 def cosSim(dictU, dictA):
@@ -20,5 +21,4 @@ def cosSim(dictU, dictA):
     # d = [v**2 for v in dictA.values()]
     den = LA.norm(list(dictU.values()))*LA.norm(list(dictA.values()))
     return num/den
-
 
