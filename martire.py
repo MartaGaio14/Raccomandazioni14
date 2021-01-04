@@ -266,6 +266,26 @@ for i in tqdm.tqdm(range(len(tfidf_test))):
 
 # crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave)
 import csv
+
+import csv
+from functools import partial
+import multiprocessing as mp
+
+N_CPU = mp.cpu_count()
+with open("risultati.csv", "w") as file:
+    writer = csv.writer(file)
+    for i in tqdm.tqdm(range(righe)):  # gira sui 1000 utenti
+        pool = mp.Pool(processes=N_CPU)
+        f = partial(cosSim, profili_tfidf[i])
+        s_tfidf = pool.map(f,  tfidf_dict_test)
+        pool.close()
+        pool.join()
+        for j in range(len(lda_dict_test)):  # gira sulle nuove news
+            u = Id_utente[i]
+            n = ID_test[j]
+            s_lda = cosSim(profili_lda[i], lda_dict_test[j])
+            writer.writerow([u, n, s_lda, s_tfidf[j]])
+#senza pool
 with open("risultati.csv", "w") as file:
     writer = csv.writer(file)
     for i in tqdm.tqdm(range(righe)):  # gira sui 1000 utenti
@@ -276,31 +296,22 @@ with open("risultati.csv", "w") as file:
             s_tfidf = cosSim(profili_tfidf[i], tfidf_dict_test[j])
             writer.writerow([u, n, s_lda, s_tfidf])
 
-risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "LDA"], header=None, error_bad_lines=False)
-
+risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
 ##########PRECISIONE RECALL E FALSE POSITIVE RATE
-precision = recall = fp_rate = 0
-tpli = []
-inizio = 0
-fine = len(S_norep2)
-for u in tqdm.tqdm(range(len(n_test))):
-    ut = risultati[inizio:fine]
-    top_lda = ut.sort_values(by=['LDA'], ascending=False)[0:N]
-    top_lda = top_lda.reset_index(drop=True)
-    tp = 0
-    for i in range(len(top_lda)):
-        if top_lda.NID[i] in n_test[u]:
-            tp += 1  # true positive
-    tpli.append(tp)
-    fp = N - tp  # false positive
-    fn = len(n_test[u]) - tp  # false negative
-    tn = len(S_norep2) - len(n_test[u]) - fp  # true negative
-    precision += tp / (tp + fp)
-    recall += tp / (tp + fn)
-    fp_rate += fp / (fp + tn)
-    inizio = (u + 1) * len(S_norep2) + 1
-    fine = (u + 2) * len(S_norep2)
+from raccomandazioni import confusion_matrix_par
 
-print("PRECISIONE")
-print(precision / righe)
+N_grid=[10, 20, 30,40, 50, 60, 70, 80, 90, 100]
+matrici_lda=[]
+for N in N_grid:
+    matrici_lda.append(confusion_matrix_par(n_test,"lda",N,ID_test, risultati))
+
+precisioni=[]
+richiami=[]
+for i in range(len(N_grid)):
+    t=list(zip(*matrici_lda[i]))
+    precisioni.append(sum(t[0])/1000)
+    richiami.append(sum(t[1])/1000)
+
+
+
