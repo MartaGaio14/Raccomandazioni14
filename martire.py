@@ -177,10 +177,10 @@ for i in tqdm.tqdm(range(len(testi_proc.ID))):
     if testi_proc.ID[i] in S_norep: #se sta nella lista delle news del training set
         testi_train.append(parole[i])
         ID_train.append(testi_proc.ID[i])
-    if testi_proc.ID[i] in S_norep2:
+    if testi_proc.ID[i] in S_norep2: #se sta nella lista delle news del test set
         testi_test.append(parole[i])
         ID_test.append(testi_proc.ID[i])
-Id_utente=list(testi_proc.ID)
+
 ######## Rappresentazione in LDA delle news
 
 ##alleniamo il modello e lo salviamo su file... PARTE DA NON FAR GIRARE
@@ -257,6 +257,7 @@ profili_tfidf = []
 for storia in tqdm.tqdm(n_train):
     profili_tfidf.append(ContentBasedProfile(storia, diz_tfidf_train))
 
+
 ############################# RACCOMANDAZIONI#####################################
 from similarita import cosSim
 
@@ -281,26 +282,17 @@ with open("risultati.csv", "w") as file:
             n = ID_test[j]
             s_lda = cosSim(profili_lda[i], lda_dict_test[j])
             writer.writerow([u, n, s_lda, s_tfidf[j]])
-#senza pool
-with open("risultati.csv", "w") as file:
-    writer = csv.writer(file)
-    for i in tqdm.tqdm(range(righe)):  # gira sui 1000 utenti
-        for j in range(len(lda_dict_test)):  # gira sulle nuove news
-            u = Id_utente[i]
-            n = ID_test[j]
-            s_lda = cosSim(profili_lda[i], lda_dict_test[j])
-            s_tfidf = cosSim(profili_tfidf[i], tfidf_dict_test[j])
-            writer.writerow([u, n, s_lda, s_tfidf])
+
 
 risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
 ##########PRECISIONE RECALL E FALSE POSITIVE RATE
 from raccomandazioni import confusion_matrix_par
 
-N_grid=[10, 20, 30,40, 50, 60, 70, 80, 90, 100]
+N_grid = list(range(10, 101, 10))
 matrici_lda=[]
 for N in tqdm.tqdm(N_grid):
-    matrici_lda.append(confusion_matrix_par(n_test,"lda",N,ID_test, risultati))
+    matrici_lda.append(confusion_matrix_par(n_test,"lda", N, ID_test, risultati))
 tutte=confusion_matrix_par(n_test,"lda",len(ID_test),ID_test, risultati)
 t=list(zip(*tutte))
 (sum(t[0])/1000)
