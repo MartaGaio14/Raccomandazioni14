@@ -142,7 +142,6 @@ for storia in tqdm.tqdm(Hist):
             rem.append(codice)
     for x in rem:
         storia.remove(x)
-
 ######## divisione in training set e test set del corpus delle news
 # (viene mantenuta la divisione delle History rispetto ad ogni utente)
 n_test = []
@@ -165,25 +164,23 @@ for i in range(len(n_train)):
     Storie_train.extend(n_train[i])
 S_norep = list(dict.fromkeys(Storie_train))
 
-##lista di tutte le news del test set che sono state lette dalla totalità degli utenti campionati
 Storie_test = []
 for i in range(len(n_test)):
     Storie_test.extend(n_test[i])
-
+S_norep2 = list(dict.fromkeys(Storie_test))
 ###### divisione dei testi processati in training e test
 testi_train = []
 ID_train = []
 testi_test = []
 ID_test = []
 for i in tqdm.tqdm(range(len(testi_proc.ID))):
-    if testi_proc.ID[i] in S_norep:
+    if testi_proc.ID[i] in S_norep: #se sta nella lista delle news del training set
         testi_train.append(parole[i])
         ID_train.append(testi_proc.ID[i])
-    else:
+    if testi_proc.ID[i] in S_norep2:
         testi_test.append(parole[i])
         ID_test.append(testi_proc.ID[i])
-
-
+Id_utente=list(testi_proc.ID)
 ######## Rappresentazione in LDA delle news
 
 ##alleniamo il modello e lo salviamo su file... PARTE DA NON FAR GIRARE
@@ -220,6 +217,9 @@ lda_train = ldamodel[corpus_train]  # lista di liste
 corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus
 lda_test = ldamodel[corpus_test]  # lista di liste
 
+lda_dict_test = []  # lista di dizionari, uno per ciascun articolo tra quelli da raccomandare. Rappresentazione utile per il calcolo della similarità
+for i in tqdm.tqdm(range(len(lda_test))):
+    lda_dict_test.append(dict(lda_test[i]))
 
 ######## Rappresentazione in TFIDF per le news di training
 from profili_item import TFIDF, IDF
@@ -230,6 +230,10 @@ tfidf_train = TFIDF(testi_train, idf_train)
 # rappresentazione in TFIDF per le news di test
 # (idf calcolato su dataset di training)
 tfidf_test = TFIDF(testi_test, idf_train)
+
+tfidf_dict_test = []#lista di dizionari: rappresentazione utile per il calcolo della similarità coseno
+for i in tqdm.tqdm(range(len(tfidf_test))):
+    tfidf_dict_test.append(dict(tfidf_test[i]))
 
 ######## Content based profile
 from profili_utenti import ContentBasedProfile
@@ -256,16 +260,8 @@ for storia in tqdm.tqdm(n_train):
 ############################# RACCOMANDAZIONI#####################################
 from similarita import cosSim
 
-lda_dict_test = []  # lista di dizionari, uno per ciascun articolo tra quelli da raccomandare
-for i in tqdm.tqdm(range(len(lda_test))):
-    lda_dict_test.append(dict(lda_test[i]))
-
-tfidf_dict_test = []
-for i in tqdm.tqdm(range(len(tfidf_test))):
-    tfidf_dict_test.append(dict(tfidf_test[i]))
 
 # crea vettori di pesi per utenti e news corrispondenti ad uno stesso termine (chiave)
-import csv
 
 import csv
 from functools import partial
@@ -303,8 +299,12 @@ from raccomandazioni import confusion_matrix_par
 
 N_grid=[10, 20, 30,40, 50, 60, 70, 80, 90, 100]
 matrici_lda=[]
-for N in N_grid:
+for N in tqdm.tqdm(N_grid):
     matrici_lda.append(confusion_matrix_par(n_test,"lda",N,ID_test, risultati))
+tutte=confusion_matrix_par(n_test,"lda",len(ID_test),ID_test, risultati)
+t=list(zip(*tutte))
+(sum(t[0])/1000)
+(sum(t[1])/1000)
 
 precisioni=[]
 richiami=[]
