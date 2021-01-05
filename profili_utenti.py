@@ -1,5 +1,7 @@
 from collections import defaultdict
 
+# diz_grande è dizionario con chiave=ID News e valore= lista contenente la rappresentazione della news (in TFIDF o LDA)
+# storia è la History dell'utente di cui si intende calcolare il profilo
 
 def ContentBasedProfile(storia, diz_grande):
     testi = []  # lista delle rappresentazioni concatenate di tutte le news lette dall'utente
