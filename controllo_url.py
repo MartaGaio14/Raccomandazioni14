@@ -1,4 +1,4 @@
-###### CONTROLLO FUNZIONAMENTO URL (per le news tra le quali possiamo campionare - utenti con History di almeno 100  )
+# CONTROLLO FUNZIONAMENTO URL (per le news tra le quali possiamo campionare - utenti non ripetuti con History di almeno 100  )
 #         non è necessario lanciarlo ogni volta
 
 # i dataset
@@ -13,10 +13,11 @@ GrandeSet = GrandeSet.reset_index(drop=True)
 l = []
 for i in tqdm.tqdm(range(len(GrandeSet))):
     a = GrandeSet.History[i].split(" ")
-    if len(a) > 150:
+    if len(a) > 100:
         l.append(i)
 Set_piu100 = GrandeSet.loc[l]
-Set_piu100 = Set_piu100.reset_index(drop=True)
+Set = Set_piu100.drop_duplicates()
+Set = Set.reset_index(drop=True)
 news_file = open("news_test.tsv", encoding="Latin1")
 read_news = pandas.read_csv(news_file, sep="\t", header=None,
                             names=["ID", "Categoria", "SubCategoria", "Titolo", "Abstract", "URL", "TE", "AE"],
@@ -28,8 +29,8 @@ read_news = read_news.dropna()
 
 Hist_tot = []  # lista di liste news per utente
 Storie_tot = []  # lista di tutte le news lette
-for i in tqdm.tqdm(range(len(Set_piu100))):
-    a = Set_piu100.History[i].split(" ")
+for i in tqdm.tqdm(range(len(Set))):
+    a = Set.History[i].split(" ")
     Hist_tot.append(a)
     Storie_tot.extend(Hist_tot[i])
 S_norep = list(dict.fromkeys(Storie_tot))  # devono rimanere 58990 articoli (news ridotto)
