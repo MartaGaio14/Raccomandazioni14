@@ -1,3 +1,6 @@
+#caso 1
+#training set e test set sono costruiti sulle History del test set MIND
+
 # FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_test
 
 # apertura del file
@@ -17,15 +20,16 @@ for i in tqdm.tqdm(range(len(GrandeSet))):
     if len(a) > 100:
         l.append(i)
 Set_piu100 = GrandeSet.loc[l]  # sono rimasti 229 121 utenti (behaviours ridotto)
-Set_piu100 = Set_piu100.reset_index(drop=True)
+Set = Set_piu100.drop_duplicates() #sono rimasti 19181 utenti
+Set = Set.reset_index(drop=True)
 
-# campionamento casuale di 1000 utenti tra quelli con History maggiori di 100
+# campionamento casuale di 1000 utenti (non ripetuti) tra quelli con History maggiori di 100
 import numpy as np
 
 np.random.seed(122020)
 righe = 1000  # numero di utenti da campionare
-campione = np.random.randint(0, len(Set_piu100), righe)
-dati_camp = Set_piu100.loc[campione]
+campione = np.random.randint(0, len(Set), righe)
+dati_camp = Set.loc[campione]
 dati_camp = dati_camp.reset_index(drop=True)
 
 Hist = []  # lista di liste news per utente
@@ -35,7 +39,7 @@ for i in range(len(dati_camp)):
     Hist.append(a)
     Id_utente.append(dati_camp.UID[i])
 
-# eliminiamo le news poblematiche ( qualora facessero parte del campione )
+# eliminiamo le news problematiche ( qualora facessero parte del campione )
 # vedi file controllo_url.py
 # le news che sono risultate prive di URL sono "N113363", "N110434", "N102010", "N45635"
 # le news che compaiono in behaviours.tsv ma non in news.tsv sono "N89741", "N1850"
@@ -178,6 +182,8 @@ lda_train = ldamodel[corpus_train]  # lista di liste
 # mostra topic e parole associate
 from pprint import pprint
 pprint(ldamodel.print_topics())
+pprint(.get_document_topics(lda_train))
+
 # valutazione del topic model tramite misura di coerenza
 coherence_model_lda = models.CoherenceModel(model=ldamodel, texts=testi_train, dictionary=dictionary, coherence='c_v')
 coherence_lda = coherence_model_lda.get_coherence()
@@ -268,22 +274,46 @@ risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"
 from raccomandazioni import confusion_matrix_par
 
 #calcolo di precisione e richiamo per diverse soglie N
-N_grid = list(range(10, 101, 10))
+N_grid = list(range(10, len(ID_test), 10))
+
+#LDA
 matrici_lda=[]
 for N in tqdm.tqdm(N_grid):
     matrici_lda.append(confusion_matrix_par(n_test,"lda", N, ID_test, risultati))
-tutte = confusion_matrix_par(n_test, "lda", len(ID_test), ID_test, risultati)
 
-t=list(zip(*tutte))
-(sum(t[0])/1000)
-(sum(t[1])/1000)
-
-precisioni=[]
-richiami=[]
-for i in range(len(N_grid)):
+precisioni_lda=[]
+richiami_lda=[]
+for i in tqdm.tqdm(range(len(N_grid))):
     t=list(zip(*matrici_lda[i]))
-    precisioni.append(sum(t[0])/1000)
-    richiami.append(sum(t[1])/1000)
+    precisioni_lda.append(sum(t[0])/1000)
+    richiami_lda.append(sum(t[1])/1000)
 
+import matplotlib.pyplot as plt
+plt.plot(richiami_lda, precisioni_lda)
+plt.xlabel('richiamo')
+plt.ylabel('precisione')
+plt.suptitle("LDA")
+plt.show()
 
+from sklearn import metrics
+auc_lda=metrics.auc(richiami_lda, precisioni_lda)
 
+#TFIDF
+matrici_tfidf=[]
+for N in tqdm.tqdm(N_grid):
+    matrici_tfidf.append(confusion_matrix_par(n_test,"tfidf", N, ID_test, risultati))
+
+precisioni_tfidf=[]
+richiami_tfidf=[]
+for i in tqdm.tqdm(range(len(N_grid))):
+    t=list(zip(*matrici_tfidf[i]))
+    precisioni_tfidf.append(sum(t[0])/1000)
+    richiami_tfidf.append(sum(t[1])/1000)
+
+plt.plot(richiami_tfidf, precisioni_tfidf)
+plt.xlabel('richiamo')
+plt.ylabel('precisione')
+plt.suptitle("TFIDF")
+plt.show()
+
+auc_tfidf=metrics.auc(richiami_tfidf, precisioni_tfidf)
