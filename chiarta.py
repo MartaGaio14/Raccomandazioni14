@@ -207,10 +207,11 @@ lda_test = ldamodel[corpus_test]  # lista di liste
 
 # lista di dizionari, ogni dizionario contiene chiave: ID della news, valore: dizionario con rappresentazione LDA
 # dizionario per ogni utente [len(lda_dict_test)=500]
+
 lda_dict_test = []
-for i in tqdm.tqdm(range(len(ID_test))):
-    dt={}
-    for signore in n_test:
+for signore in tqdm.tqdm(n_test):
+    dt = {}
+    for i in range(len(ID_test)):
         if ID_test[i] in signore:
             dt[ID_test[i]]=dict(lda_test[i])
     lda_dict_test.append(dt)
@@ -227,11 +228,11 @@ tfidf_test = TFIDF(testi_test, idf_train)
 
 #lista di dizionari: chiave ID, valore: dizionario con rappresentazione TFIDF
 tfidf_dict_test = []
-for i in tqdm.tqdm(range(len(ID_test))):
-    dt={}
-    for signore in n_test:
+for signore in tqdm.tqdm(n_test):
+    dt = {}
+    for i in range(len(ID_test)):
         if ID_test[i] in signore:
-            dt[ID_test[i]]=dict(tfidf_test[i])
+            dt[ID_test[i]]=tfidf_test[i]
     tfidf_dict_test.append(dt)
 
 # CONTENT BASED PROFILE
@@ -274,11 +275,11 @@ with open("risultati.csv", "w") as file:
         s_tfidf = pool.map(f, dr)
         pool.close()
         pool.join()
+        drid = list(lda_dict_test[i].keys())  # lista degli id degli articoli candidati alla raccomandazione per
+        # l'i-esimo utente
+        dr = list(lda_dict_test[i].values())  # lista degli articoli candidati alla raccomandazione per l'i-esimo utente
+        # ciascun articolo è espresso tramite dizionario con la sua rappresentazione in lda
         for j in range(len(lda_dict_test[i])):  # gira sulle nuove news
-            drid=list(lda_dict_test[i].keys()) #lista degli id degli articoli candidati alla raccomandazione per
-            #l'i-esimo utente
-            dr=list(lda_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
-            #ciascun articolo è espresso tramite dizionario con la sua rappresentazione in lda
             u = Id_utente[i]
             n = drid[j]
             s_lda = cosSim(profili_lda[i], dr[j])
@@ -286,50 +287,15 @@ with open("risultati.csv", "w") as file:
 
 risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
-# valutazione:  PRECISION-RECALL CURVE
-from raccomandazioni import confusion_matrix_par
+# valutazione:  ndcg
+from raccomandazioni import ndcg_par
+N=10
 
-#calcolo di precisione e richiamo per diverse soglie N
-N_grid = list(range(10, len(ID_test), 10))
+#lda
+ndcg_lda=ndcg_par("lda", N, Impr, risultati)
+mean(ndcg_lda)
 
-#LDA
-matrici_lda=[]
-for N in tqdm.tqdm(N_grid):
-    matrici_lda.append(confusion_matrix_par(n_test,"lda", N, ID_test, risultati))
-
-precisioni_lda=[]
-richiami_lda=[]
-for i in tqdm.tqdm(range(len(N_grid))):
-    t=list(zip(*matrici_lda[i]))
-    precisioni_lda.append(sum(t[0])/1000)
-    richiami_lda.append(sum(t[1])/1000)
-
-import matplotlib.pyplot as plt
-plt.plot(richiami_lda, precisioni_lda)
-plt.xlabel('richiamo')
-plt.ylabel('precisione')
-plt.suptitle("LDA")
-plt.show()
-
-from sklearn import metrics
-auc_lda=metrics.auc(richiami_lda, precisioni_lda)
-
-#TFIDF
-matrici_tfidf=[]
-for N in tqdm.tqdm(N_grid):
-    matrici_tfidf.append(confusion_matrix_par(n_test,"tfidf", N, ID_test, risultati))
-
-precisioni_tfidf=[]
-richiami_tfidf=[]
-for i in tqdm.tqdm(range(len(N_grid))):
-    t=list(zip(*matrici_tfidf[i]))
-    precisioni_tfidf.append(sum(t[0])/1000)
-    richiami_tfidf.append(sum(t[1])/1000)
-
-plt.plot(richiami_tfidf, precisioni_tfidf)
-plt.xlabel('richiamo')
-plt.ylabel('precisione')
-plt.suptitle("TFIDF")
-plt.show()
-
+#lda
+ndcg_tfidf=ndcg_par("tfidf", N, Impr, risultati)
+mean(ndcg_tfidf)
 
