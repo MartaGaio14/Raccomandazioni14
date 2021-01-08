@@ -232,7 +232,7 @@ for signore in tqdm.tqdm(n_test):
     dt = {}
     for i in range(len(ID_test)):
         if ID_test[i] in signore:
-            dt[ID_test[i]]=tfidf_test[i]
+            dt[ID_test[i]]=dict(tfidf_test[i])
     tfidf_dict_test.append(dt)
 
 # CONTENT BASED PROFILE
@@ -265,27 +265,27 @@ import multiprocessing as mp
 #creazione file che contiene, per ogni combinazione di utente e ID news del test set (=le news da raccomandare),
 # la cosine similarity tra il profilo utente e il profilo dell'item, costruiti in entrambe le rappresentazioni (TFIDF/LDA)
 N_CPU = mp.cpu_count()
-with open("risultati.csv", "w") as file:
+with open("risultati2.csv", "w") as file:
     writer = csv.writer(file)
     for i in tqdm.tqdm(range(righe)):  # gira sui 1000 utenti
         pool = mp.Pool(processes = N_CPU)
         f = partial(cosSim, profili_tfidf[i])
-        dr=list(tfidf_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
+        dr_tfidf=list(tfidf_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
         #ciascun articolo è espresso tramite dizionario con la sua rappresentazione in tfidf
-        s_tfidf = pool.map(f, dr)
+        s_tfidf = pool.map(f, dr_tfidf)
         pool.close()
         pool.join()
         drid = list(lda_dict_test[i].keys())  # lista degli id degli articoli candidati alla raccomandazione per
         # l'i-esimo utente
-        dr = list(lda_dict_test[i].values())  # lista degli articoli candidati alla raccomandazione per l'i-esimo utente
+        dr_lda = list(lda_dict_test[i].values())  # lista degli articoli candidati alla raccomandazione per l'i-esimo utente
         # ciascun articolo è espresso tramite dizionario con la sua rappresentazione in lda
         for j in range(len(lda_dict_test[i])):  # gira sulle nuove news
             u = Id_utente[i]
             n = drid[j]
-            s_lda = cosSim(profili_lda[i], dr[j])
+            s_lda = cosSim(profili_lda[i], dr_lda[j])
             writer.writerow([u, n, s_lda, s_tfidf[j]])
 
-risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
+risultati = pandas.read_csv("risultati2.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
 # valutazione:  ndcg
 from raccomandazioni import ndcg_par
