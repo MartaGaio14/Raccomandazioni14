@@ -130,7 +130,7 @@ for i in tqdm.tqdm(range(len(Hist))):
 
 #divisione delle singole parole preprocessate che vengono lette dal file testi_proc2 come un'unica stringa
 import re
-parole = []  # lista di listedelle parole preprocessate per ogni testo
+parole = []  # lista di liste delle parole preprocessate per ogni testo
 for i in range(len(testi_proc)):
     a = re.sub(r"([^a-zA-Z\s])", "", testi_proc.parole[i])
     parole.append(a.split(" "))
@@ -269,15 +269,20 @@ with open("risultati.csv", "w") as file:
     for i in tqdm.tqdm(range(righe)):  # gira sui 1000 utenti
         pool = mp.Pool(processes = N_CPU)
         f = partial(cosSim, profili_tfidf[i])
-        s_tfidf = pool.map(f,  list(tfidf_dict_test[i].values()))
+        dr=list(tfidf_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
+        #ciascun articolo è espresso tramite dizionario con la sua rappresentazione in tfidf
+        s_tfidf = pool.map(f, dr)
         pool.close()
         pool.join()
         for j in range(len(lda_dict_test[i])):  # gira sulle nuove news
+            drid=list(lda_dict_test[i].keys()) #lista degli id degli articoli candidati alla raccomandazione per
+            #l'i-esimo utente
+            dr=list(lda_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
+            #ciascun articolo è espresso tramite dizionario con la sua rappresentazione in lda
             u = Id_utente[i]
-            n = list(lda_dict_test[i].keys())[j]
-            s_lda = cosSim(profili_lda[i], list(lda_dict_test[i].values())[j])
+            n = drid[j]
+            s_lda = cosSim(profili_lda[i], dr[j])
             writer.writerow([u, n, s_lda, s_tfidf[j]])
-
 
 risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 

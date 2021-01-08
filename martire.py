@@ -115,7 +115,7 @@ for storia in tqdm.tqdm(Hist):
     for x in rem:
         storia.remove(x)
 
-#divisione delle singole parole preprocessate che vengono lete dal file testi_proc come un'unica stringa
+#divisione delle singole parole preprocessate che vengono lette dal file testi_proc come un'unica stringa
 import re
 parole = []  # lista di listedelle parole preprocessate per ogni testo
 for i in range(len(testi_proc)):
