@@ -72,7 +72,23 @@ def input_ndcg(imp, racc):
     return true, prev
 
 #calcola il punteggio ndcg
-def ndcg(pos_utente, tipo, N, imp, risultati):
+def ndcg(pos_utente, tipo, N, imp, risultati, coda=None):
     racc = raccomandati2(pos_utente, tipo,  N, imp, risultati)
     true, prev = input_ndcg(imp[pos_utente], racc)
-    return ndcg_score(true, prev)
+    if coda is None:  # se è non valorizzato ritorno il risultato
+        return ndcg_score(true, prev)
+    else:  # altrimenti accodo il risultato che ho trovato
+        return coda.put(ndcg_score(true, prev))
+
+
+def ndcg_par(tipo, N, imp, risultati):
+    coda = mp.Queue()
+    threads = [threading.Thread(target=ndcg, args=(pos_utente,),
+                                kwargs={"tipo": tipo, "N": N, "imp": imp, "risultati": risultati, "coda": coda})
+               for pos_utente in range(500)]
+    for t in threads:
+        t.start()
+    x = [coda.get() for t in threads]
+    for t in threads:
+        t.join()  # blocca il MainThread finché t non è completato
+    return x
