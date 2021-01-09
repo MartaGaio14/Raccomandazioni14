@@ -13,7 +13,7 @@ Set.close()
 # pulizia del dataset
 GrandeSet = Set1.dropna()
 GrandeSet = GrandeSet.reset_index(drop=True)
-GrandeSet.info(null_counts=True)
+
 l = []
 for i in tqdm.tqdm(range(len(GrandeSet))):
     a = GrandeSet.History[i].split(" ")
@@ -64,7 +64,7 @@ for i in range(len(Hist)):
     tutteNID.extend(Hist[i])
     tutteNID.extend(Impr[i].keys())
 tutteNID = list(dict.fromkeys(tutteNID))
-
+"""
 # FILE CON LE INFORMAZIONI SULLE NEWS: news_test
 
 # apertura del file
@@ -99,7 +99,7 @@ with open("testi2.csv", "w", encoding="Utf-8") as file:
 # DA TERMINALE: PREPROCESSING CON MAP REDUCE
 # python3 MapReduce.py testi.csv > testi_proc2.csv
 
-
+"""
 # apertura file testi preprocessati
 testi_proc = pandas.read_csv("testi_proc2.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
 
@@ -183,10 +183,10 @@ corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
 ldamodel = pickle.load(open('lda_model2.sav', 'rb'))
 # rappresentazione in dimensioni latenti di tutti i testi del corpus di train
 lda_train = ldamodel[corpus_train]  # lista di liste
-
+"""
 # mostra topic e parole associate
 from pprint import pprint
-pprint(ldamodel.print_topics())
+pprint(ldamodel.print_topics()) #i 20 topic più significativi
 
 # valutazione del topic model tramite misura di coerenza
 coherence_model_lda = models.CoherenceModel(model=ldamodel, texts=testi_train, dictionary=dictionary, coherence='c_v')
@@ -199,7 +199,7 @@ import pyLDAvis
 pyLDAvis.enable_notebook()
 LDAvis_prepared = pyLDAvis.gensim.prepare(ldamodel, corpus_train, dictionary)
 pyLDAvis.show(LDAvis_prepared)
-
+"""
 
 # rappresentazione in dimensioni latenti di tutti i testi del corpus di test sulla base del modello allenato
 corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus
@@ -258,6 +258,7 @@ for storia in tqdm.tqdm(n_train):
     profili_tfidf.append(ContentBasedProfile(storia, diz_tfidf_train))
 
 # RACCOMANDAZIONI
+"""
 from similarita import cosSim
 from functools import partial
 import multiprocessing as mp
@@ -284,18 +285,19 @@ with open("risultati2.csv", "w") as file:
             n = drid[j]
             s_lda = cosSim(profili_lda[i], dr_lda[j])
             writer.writerow([u, n, s_lda, s_tfidf[j]])
+"""
 
 risultati = pandas.read_csv("risultati2.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
 # valutazione:  ndcg
 from raccomandazioni import ndcg_par
-N=10
+N=5
 
 #lda
 ndcg_lda=ndcg_par("lda", N, Impr, risultati)
-mean(ndcg_lda)
+sum(ndcg_lda)/len(ndcg_lda)
 
-#lda
+#tfidf
 ndcg_tfidf=ndcg_par("tfidf", N, Impr, risultati)
-mean(ndcg_tfidf)
+sum(ndcg_tfidf)/len(ndcg_tfidf)
 
