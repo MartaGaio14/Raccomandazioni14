@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import threading
 from sklearn.metrics import ndcg_score
+import array
 
 #funzioni utili per il caso 1
 
@@ -33,7 +34,7 @@ def confusion_matrix(pos_utente, storia, tipo, N, ID_test, risultati, coda=None)
     else:  # altrimenti accodo il risultato che ho trovato
         return coda.put((precision, recall))
 
-#funzione parallelizzata tramite multithreding
+#funzione parallelizzata della funzione confusion_matrix tramite multithreding
 def confusion_matrix_par(n_test, tipo, N, ID_test, risultati):
     coda = mp.Queue()
     #args: argomenti dinamici, la posizione dell'utente e la lista delle news del test set che ha letto (storia)
@@ -50,29 +51,32 @@ def confusion_matrix_par(n_test, tipo, N, ID_test, risultati):
 
 #funzioni utili per il caso 2
 
-def raccomandati2(pos_utente, tipo, N, imp, risultati):
+# pos_utente è la posizione dell'utente in ID_utente (da 1 a 1000)
+# tipo è il tipo di rappresentazione, "lda" o "tfidf"
+# N è il numero di news da raccomandare
+# Impr è lista di news candidate alla raccomandazione per ogni utente, con i rating 0 o 1
+def raccomandati2(pos_utente, tipo, N, Impr, risultati):
     # selezioniamo i risultati riguardanti l'utente in posizione pos_utente
     # nota: i risultati sono salvati in ordine per utente
     inizio = 0
     if pos_utente != 0:
         for i in range(pos_utente):
-            inizio += len(imp[i])
-    fine = inizio + len(imp[pos_utente])
+            inizio += len(Impr[i])
+    fine = inizio + len(Impr[pos_utente])
     ut = risultati[inizio:fine]  # selezione dati relativi all'utente in questione
     ut = ut.sort_values(by=[tipo], ascending=False)  # ordine decrescente dei dati rispetto alla similarità
     ut = ut.reset_index(drop=True)
     top_tipo = ut[0:N]
     return list(top_tipo.NID)
 
-import array
 
 #per ogni utente vengono inseriti imp: il dizionario contenente la sua impression, racc: la lista delle news raccomandate
 def input_ndcg(imp, racc):
-    true = array.array("i", )
+    true = array.array("i", ) # vettore contenente gli 0 e 1 dell' impression dell'utente
     for j in list(imp.values()):
         true.append(int(j))
     ID = list(imp.keys())
-    prev = array.array("i",)
+    prev = array.array("i",)  # vettore contenente gli 0 e 1 predetti dal sistema di raccomandazioni
     for articolo in ID:
         if articolo in racc:
             prev.append(1)
@@ -80,7 +84,7 @@ def input_ndcg(imp, racc):
             prev.append(0)
     return [true], [prev]
 
-#calcola il punteggio ndcg
+# calcola il punteggio ndcg
 def ndcg(pos_utente, tipo, N, imp, risultati, coda=None):
     racc = raccomandati2(pos_utente, tipo,  N, imp, risultati)
     true, prev = input_ndcg(imp[pos_utente], racc)
@@ -89,6 +93,7 @@ def ndcg(pos_utente, tipo, N, imp, risultati, coda=None):
     else:  # altrimenti accodo il risultato che ho trovato
         return coda.put(ndcg_score(true, prev))
 
+# versione parallelizzata della funzione ndcg tramite multithreding
 def ndcg_par(tipo, N, imp, risultati):
     coda = mp.Queue()
     threads = [threading.Thread(target=ndcg, args=(pos_utente,),
