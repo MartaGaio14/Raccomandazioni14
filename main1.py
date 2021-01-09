@@ -274,7 +274,7 @@ risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"
 from raccomandazioni import confusion_matrix_par
 
 #calcolo di precisione e richiamo per diverse soglie N
-N_grid = list(range(10, len(ID_test), 10))
+N_grid = [5,10,20]
 
 #LDA
 matrici_lda=[]
@@ -288,15 +288,6 @@ for i in tqdm.tqdm(range(len(N_grid))):
     precisioni_lda.append(sum(t[0])/1000)
     richiami_lda.append(sum(t[1])/1000)
 
-import matplotlib.pyplot as plt
-plt.plot(richiami_lda, precisioni_lda)
-plt.xlabel('richiamo')
-plt.ylabel('precisione')
-plt.suptitle("LDA")
-plt.show()
-
-from sklearn import metrics
-auc_lda=metrics.auc(richiami_lda, precisioni_lda)
 
 #TFIDF
 matrici_tfidf=[]
@@ -310,10 +301,3 @@ for i in tqdm.tqdm(range(len(N_grid))):
     precisioni_tfidf.append(sum(t[0])/1000)
     richiami_tfidf.append(sum(t[1])/1000)
 
-plt.plot(richiami_tfidf, precisioni_tfidf)
-plt.xlabel('richiamo')
-plt.ylabel('precisione')
-plt.suptitle("TFIDF")
-plt.show()
-
-auc_tfidf=metrics.auc(richiami_tfidf, precisioni_tfidf)
