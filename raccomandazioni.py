@@ -2,6 +2,8 @@ import multiprocessing as mp
 import threading
 from sklearn.metrics import ndcg_score
 
+#funzioni utili per il caso 1
+
 # pos_utente è la posizione dell'utente in ID_utente (da 1 a 1000)
 # tipo è il tipo di rappresentazione, "lda" o "tfidf"
 # N è il numero di news da raccomandare
@@ -14,19 +16,6 @@ def raccomandati(pos_utente, tipo, N, ID_test, risultati):
     ut = ut.reset_index(drop=True)
     top_tipo = ut[0:N]
     return list(top_tipo.NID)
-
-def raccomandati2(pos_utente, tipo, N, imp, risultati):
-    inizio = 0
-    if pos_utente != 0:
-        for i in range(pos_utente - 1):
-            inizio += len(imp[i])
-    fine = inizio + len(imp[pos_utente])
-    ut = risultati[inizio:fine]  # selezione dati relativi all'utente in questione
-    ut = ut.sort_values(by=[tipo], ascending=False)  # ordine decrescente dei dati rispetto alla similarità
-    ut = ut.reset_index(drop=True)
-    top_tipo = ut[0:N]
-    return list(top_tipo.NID)
-
 
 # storia: lista delle news lette dall'utente (n_test[i])
 def confusion_matrix(pos_utente, storia, tipo, N, ID_test, risultati, coda=None):
@@ -59,17 +48,37 @@ def confusion_matrix_par(n_test, tipo, N, ID_test, risultati):
         t.join()  # blocca il MainThread finché t non è completato
     return x
 
+#funzioni utili per il caso 2
+
+def raccomandati2(pos_utente, tipo, N, imp, risultati):
+    # selezioniamo i risultati riguardanti l'utente in posizione pos_utente
+    # nota: i risultati sono salvati in ordine per utente
+    inizio = 0
+    if pos_utente != 0:
+        for i in range(pos_utente):
+            inizio += len(imp[i])
+    fine = inizio + len(imp[pos_utente])
+    ut = risultati[inizio:fine]  # selezione dati relativi all'utente in questione
+    ut = ut.sort_values(by=[tipo], ascending=False)  # ordine decrescente dei dati rispetto alla similarità
+    ut = ut.reset_index(drop=True)
+    top_tipo = ut[0:N]
+    return list(top_tipo.NID)
+
+import array
+
 #per ogni utente vengono inseriti imp: il dizionario contenente la sua impression, racc: la lista delle news raccomandate
 def input_ndcg(imp, racc):
-    true = list(imp.values())
+    true = array.array("i", )
+    for j in list(imp.values()):
+        true.append(int(j))
     ID = list(imp.keys())
-    prev = []
+    prev = array.array("i",)
     for articolo in ID:
         if articolo in racc:
             prev.append(1)
         else:
             prev.append(0)
-    return true, prev
+    return [true], [prev]
 
 #calcola il punteggio ndcg
 def ndcg(pos_utente, tipo, N, imp, risultati, coda=None):
@@ -79,7 +88,6 @@ def ndcg(pos_utente, tipo, N, imp, risultati, coda=None):
         return ndcg_score(true, prev)
     else:  # altrimenti accodo il risultato che ho trovato
         return coda.put(ndcg_score(true, prev))
-
 
 def ndcg_par(tipo, N, imp, risultati):
     coda = mp.Queue()
