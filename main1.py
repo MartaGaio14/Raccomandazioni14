@@ -58,7 +58,7 @@ for i in range(len(Hist)):
 tutteNID = list(dict.fromkeys(tutteNID))
 
 # FILE CON LE INFORMAZIONI SULLE NEWS: news_test
-
+"""
 # apertura del file
 news_file = open("news_test.tsv", encoding="Latin1")
 read_news = pandas.read_csv(news_file, sep="\t", header=None,
@@ -92,7 +92,7 @@ with open("testi.csv", "w", encoding="Utf-8") as file:
 # python3 MapReduce.py testi.csv > testi_proc.csv
 # il file testi_proc conterrà i testi preprocessati
 
-
+"""
 # apertura file testi preprocessati
 testi_proc = pandas.read_csv("testi_proc.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
 
@@ -169,21 +169,20 @@ from gensim import models
 import pickle
 from profili_item import LDA_corpus
 
-corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
-##alleniamo il modello e lo salviamo su file
-# ldamodel = models.LdaMulticore(corpus_train, num_topics=80, id2word=dictionary, passes=20, workers=3)
-# pickle.dump(ldamodel, open('lda_model.sav', 'wb'))
+corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus per le news di training
+
+"""
+# alleniamo il modello e lo salviamo su file
+ldamodel = models.LdaMulticore(corpus_train, num_topics=80, id2word=dictionary, passes=20, workers=3)
+pickle.dump(ldamodel, open('lda_model.sav', 'wb'))
+"""
 
 # carichiamo il file col modello allenato
 ldamodel = pickle.load(open('lda_model.sav', 'rb'))
 # rappresentazione in dimensioni latenti di tutti i testi del corpus di train
 lda_train = ldamodel[corpus_train]  # lista di liste
 
-# mostra topic e parole associate
-from pprint import pprint
-pprint(ldamodel.print_topics())
-pprint(.get_document_topics(lda_train))
-
+"""
 # valutazione del topic model tramite misura di coerenza
 coherence_model_lda = models.CoherenceModel(model=ldamodel, texts=testi_train, dictionary=dictionary, coherence='c_v')
 coherence_lda = coherence_model_lda.get_coherence()
@@ -195,11 +194,11 @@ import pyLDAvis
 pyLDAvis.enable_notebook()
 LDAvis_prepared = pyLDAvis.gensim.prepare(ldamodel, corpus_train, dictionary)
 pyLDAvis.show(LDAvis_prepared)
-
+"""
 
 # rappresentazione in dimensioni latenti di tutti i testi del corpus di test sulla base del modello allenato
-corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus
-lda_test = ldamodel[corpus_test]  # lista di liste
+corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus delle news di test
+lda_test = list(ldamodel.get_document_topics(corpus_test))  # lista di liste
 
 # lista di dizionari, uno per ciascun articolo tra quelli da raccomandare
 # rappresentazione utile per il calcolo della similarità
@@ -244,8 +243,8 @@ profili_tfidf = []
 for storia in tqdm.tqdm(n_train):
     profili_tfidf.append(ContentBasedProfile(storia, diz_tfidf_train))
 
-
 # RACCOMANDAZIONI
+"""
 from similarita import cosSim
 from functools import partial
 import multiprocessing as mp
@@ -267,7 +266,7 @@ with open("risultati.csv", "w") as file:
             s_lda = cosSim(profili_lda[i], lda_dict_test[j])
             writer.writerow([u, n, s_lda, s_tfidf[j]])
 
-
+"""
 risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
 # valutazione:  PRECISION-RECALL CURVE
@@ -285,8 +284,8 @@ precisioni_lda=[]
 richiami_lda=[]
 for i in tqdm.tqdm(range(len(N_grid))):
     t=list(zip(*matrici_lda[i]))
-    precisioni_lda.append(sum(t[0])/1000)
-    richiami_lda.append(sum(t[1])/1000)
+    precisioni_lda.append(sum(t[0])/righe)
+    richiami_lda.append(sum(t[1])/righe)
 
 
 #TFIDF
@@ -298,6 +297,6 @@ precisioni_tfidf=[]
 richiami_tfidf=[]
 for i in tqdm.tqdm(range(len(N_grid))):
     t=list(zip(*matrici_tfidf[i]))
-    precisioni_tfidf.append(sum(t[0])/1000)
-    richiami_tfidf.append(sum(t[1])/1000)
+    precisioni_tfidf.append(sum(t[0])/righe)
+    richiami_tfidf.append(sum(t[1])/righe)
 
