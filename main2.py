@@ -35,7 +35,8 @@ dati_camp = dati_camp.reset_index(drop=True)
 
 Hist = []  # lista di liste news per utente
 Id_utente = []  # lista id utenti
-Impr = []
+Impr = [] # lista di dizionari, ciscun dizionario contiene le impressions di un utente (chiave: id della news, valore:
+# 0 o 1 a seconda che quella news sia stata cliccata o meno dall'utente)
 for i in range(len(dati_camp)):
     a = dati_camp.History[i].split(" ")
     Hist.append(a)
@@ -112,7 +113,7 @@ for i in tqdm.tqdm(range(len(testi_proc.parole))):
 testi_proc = testi_proc.drop(posvideo)
 testi_proc = testi_proc.reset_index(drop=True)
 
-# rimuovere anche da Hist gli ID delle news eliminate post-estrazione
+# rimuovere anche da Hist e da Impr gli ID delle news eliminate post-estrazione
 for i in tqdm.tqdm(range(len(Hist))):
     rem_h = []
     rem_i =[]
@@ -137,8 +138,8 @@ for i in range(len(testi_proc)):
 
 
 # divisione in training set e test set del corpus delle news
-n_train = Hist
-n_test =[]
+n_train = Hist # le news del training set sono quelle presenti nelle History
+n_test =[] # le news del training set sono quelle presenti nelle Impressions
 for signore in Impr:
     n_test.append(list(signore.keys()))
 
@@ -149,6 +150,7 @@ for i in range(len(n_train)):
     Storie_train.extend(n_train[i])
 S_norep = list(dict.fromkeys(Storie_train))
 
+# lista di tutte le news del test set che sono state lette dalla totalità degli utenti campionati
 Storie_test = []
 for i in range(len(n_test)):
     Storie_test.extend(n_test[i])
@@ -157,9 +159,11 @@ S_norep2 = list(dict.fromkeys(Storie_test))
 
 # divisione dei testi processati in training e test
 testi_train = []
-ID_train = []
+ID_train = []  # riscriviamo la lista degli id delle news di training nell'ordine in cui esse compaiono in testi_proc2
 testi_test = []
-ID_test = []
+ID_test = [] # riscriviamo la lista degli id delle news di test nell'ordine in cui esse compaiono in testi_proc2
+# è necessario riscrivere ID_train e ID_test perchè, usando MapReduce nella creazione di testi_proc2, cambia ogni volta
+# l'ordine con cui vengono restituiti i testi
 for i in tqdm.tqdm(range(len(testi_proc.ID))):
     if testi_proc.ID[i] in S_norep: #se sta nella lista delle news del training set
         testi_train.append(parole[i])
@@ -175,18 +179,16 @@ import pickle
 from profili_item import LDA_corpus
 
 corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
-##alleniamo il modello e lo salviamo su file
-# ldamodel = models.LdaMulticore(corpus_train, num_topics=80, id2word=dictionary, passes=20, workers=3)
-# pickle.dump(ldamodel, open('lda_model2.sav', 'wb'))
-
+"""
+#alleniamo il modello e lo salviamo su file
+ldamodel = models.LdaMulticore(corpus_train, num_topics=80, id2word=dictionary, passes=20, workers=3)
+pickle.dump(ldamodel, open('lda_model2.sav', 'wb'))
+"""
 # carichiamo il file col modello allenato
 ldamodel = pickle.load(open('lda_model2.sav', 'rb'))
 # rappresentazione in dimensioni latenti di tutti i testi del corpus di train
 lda_train = ldamodel[corpus_train]  # lista di liste
 """
-# mostra topic e parole associate
-from pprint import pprint
-pprint(ldamodel.print_topics()) #i 20 topic più significativi
 
 # valutazione del topic model tramite misura di coerenza
 coherence_model_lda = models.CoherenceModel(model=ldamodel, texts=testi_train, dictionary=dictionary, coherence='c_v')
@@ -205,14 +207,16 @@ pyLDAvis.show(LDAvis_prepared)
 corpus_test, dictionary = LDA_corpus(testi_test)  # creazione del corpus
 lda_test = ldamodel[corpus_test]  # lista di liste
 
-# lista di dizionari, ogni dizionario contiene chiave: ID della news, valore: dizionario con rappresentazione LDA
-# dizionario per ogni utente [len(lda_dict_test)=500]
+lda_test=list(ldamodel.get_document_topics(corpus_test))
+
+# lista di dizionari, uno per ogni utente. Ogni dizionario contiene la rappresentazione in LDA delle news presenti
+# nell'impression dell'utente (chiave: ID della news, valore: dizionario con la sua rappresentazione LDA)
 
 lda_dict_test = []
-for signore in tqdm.tqdm(n_test):
+for imp in tqdm.tqdm(n_test): # imp è la lista delle news presenti nell'impression dell'utente
     dt = {}
-    for i in range(len(ID_test)):
-        if ID_test[i] in signore:
+    for i in range(len(lda_test)):
+        if ID_test[i] in imp: # ID_test[i] è l'id della news la cui rappresentazione LDA sta in lda_test[i] (stesso ordine)
             dt[ID_test[i]]=dict(lda_test[i])
     lda_dict_test.append(dt)
 
@@ -226,12 +230,13 @@ tfidf_train = TFIDF(testi_train, idf_train)
 # (idf calcolato su dataset di training)
 tfidf_test = TFIDF(testi_test, idf_train)
 
-#lista di dizionari: chiave ID, valore: dizionario con rappresentazione TFIDF
+# lista di dizionari, uno per ogni utente. Ogni dizionario contiene la rappresentazione in TFIDF delle news presenti
+# nell'impression dell'utente (chiave: ID della news, valore: dizionario con la sua rappresentazione TFIDF)
 tfidf_dict_test = []
-for signore in tqdm.tqdm(n_test):
+for imp in tqdm.tqdm(n_test): # imp è la lista delle news presenti nell'impression dell'utente
     dt = {}
     for i in range(len(ID_test)):
-        if ID_test[i] in signore:
+        if ID_test[i] in imp: # ID_test[i] è l'id della news la cui rappresentazione TFIDF sta in lda_test[i] (stesso ordine)
             dt[ID_test[i]]=dict(tfidf_test[i])
     tfidf_dict_test.append(dt)
 
@@ -243,7 +248,6 @@ from profili_utenti import ContentBasedProfile
 diz_lda_train = {}
 for i in tqdm.tqdm(range(len(ID_train))):
     diz_lda_train[ID_train[i]] = lda_train[i]
-
 profili_lda = []
 for storia in tqdm.tqdm(n_train):
     profili_lda.append(ContentBasedProfile(storia, diz_lda_train))
@@ -252,7 +256,6 @@ for storia in tqdm.tqdm(n_train):
 diz_tfidf_train = {}
 for i in tqdm.tqdm(range(len(ID_train))):
     diz_tfidf_train[ID_train[i]] = tfidf_train[i]
-
 profili_tfidf = []
 for storia in tqdm.tqdm(n_train):
     profili_tfidf.append(ContentBasedProfile(storia, diz_tfidf_train))
@@ -263,12 +266,12 @@ from similarita import cosSim
 from functools import partial
 import multiprocessing as mp
 
-#creazione file che contiene, per ogni combinazione di utente e ID news del test set (=le news da raccomandare),
+#creazione file che contiene, per ogni combinazione di utente e ID news delle sue impressions (=le news da raccomandare),
 # la cosine similarity tra il profilo utente e il profilo dell'item, costruiti in entrambe le rappresentazioni (TFIDF/LDA)
 N_CPU = mp.cpu_count()
 with open("risultati2.csv", "w") as file:
     writer = csv.writer(file)
-    for i in tqdm.tqdm(range(righe)):  # gira sui 1000 utenti
+    for i in tqdm.tqdm(range(righe)):  # gira sui 500 utenti
         pool = mp.Pool(processes = N_CPU)
         f = partial(cosSim, profili_tfidf[i])
         dr_tfidf=list(tfidf_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
@@ -291,13 +294,16 @@ risultati = pandas.read_csv("risultati2.csv", names=["UID", "NID", "lda", "tfidf
 
 # valutazione:  ndcg
 from raccomandazioni import ndcg_par
-N=5
+N_grid=[5,10,20] # calcoliamo l'ndcg medio per questi diversi valori di N (numero di news da raccomandare)
 
 #lda
-ndcg_lda=ndcg_par("lda", N, Impr, risultati)
-sum(ndcg_lda)/len(ndcg_lda)
+ndcg_lda=[]
+for N in N_grid:
+    ndcg_lda.append( sum(ndcg_par("lda", N, Impr, risultati))/righe )
+
 
 #tfidf
-ndcg_tfidf=ndcg_par("tfidf", N, Impr, risultati)
-sum(ndcg_tfidf)/len(ndcg_tfidf)
+ndcg_tfidf=[]
+for N in N_grid:
+    ndcg_tfidf.append( sum(ndcg_par("tfidf", N, Impr, risultati))/righe )
 
