@@ -51,6 +51,7 @@ def confusion_matrix_par(n_test, tipo, N, ID_test, risultati):
 
 #funzioni utili per il caso 2
 
+
 # pos_utente è la posizione dell'utente in ID_utente (da 1 a 1000)
 # tipo è il tipo di rappresentazione, "lda" o "tfidf"
 # N è il numero di news da raccomandare
@@ -69,6 +70,43 @@ def raccomandati2(pos_utente, tipo, N, Impr, risultati):
     top_tipo = ut[0:N]
     return list(top_tipo.NID)
 
+# funzione che data l'impression di un utente restituisce la lista delle news da lui cliccate
+def piaciute(imp):
+    true=[]
+    for notizia in list(imp.keys()):
+        if imp[notizia]== '1':
+            true.append(notizia)
+    return true
+
+# funzione che restituisce precisione e recall delle raccomandazioni effettuate per un certo utente
+def confusion_matrix2(pos_utente, tipo, N, Impr, risultati, coda=None):
+    piac=piaciute(Impr[pos_utente]) # lista delle news cliccate dall'utente
+    racc = raccomandati2(pos_utente, tipo, N, Impr, risultati) # lista delle news raccomandate per l'utente
+    racc_set = set(racc)
+    intersection = list(racc_set.intersection(piac))  # news lette e raccomandate
+    tp = len(intersection)
+    fp = N - tp  # false positive
+    fn = len(piac) - tp  # false negative
+    precision = tp / (tp + fp)  # equivalente a tp/ N
+    recall = tp / (tp + fn) # equivalente a tp / len(storia)
+    if coda is None:  # se è non valorizzato ritorna il risultato
+        return (precision, recall)
+    else:  # altrimenti accoda il risultato che ho trovato
+        return coda.put((precision, recall))
+
+def confusion_matrix_par2(n_test, tipo, N, Impr, risultati):
+    coda = mp.Queue()
+    #args: argomenti dinamici, la posizione dell'utente e la lista delle news del test set che ha letto (storia)
+    #kwargs: argomenti statici
+    threads = [threading.Thread(target=confusion_matrix2, args=(pos_utente,),
+                                kwargs={"tipo": tipo, "N": N, "Impr": Impr, "risultati": risultati, "coda": coda})
+               for pos_utente in range(len(n_test))]
+    for t in threads:
+        t.start()
+    x = [coda.get() for t in threads]
+    for t in threads:
+        t.join()  # blocca il MainThread finché t non è completato
+    return x
 
 # per ogni utente vengono inseriti imp: il dizionario contenente la sua impression, racc: la lista delle news raccomandati
 def input_ndcg(imp, racc):
