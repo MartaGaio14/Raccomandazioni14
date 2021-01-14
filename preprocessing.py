@@ -6,7 +6,6 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
 
-url="https://assets.msn.com/labs/mind/AAJ0BJo.html"
 def extraction(url):
     r = requests.get(url, timeout=10)
     if r.status_code == 200:  # se l'accesso è avvenuto correttamente ed entro 10 secondi
@@ -49,8 +48,6 @@ for i in range(0, len(lettere)):
     stop_words.add(lettere[i])
 for i in range(0, len(numeri)):
     stop_words.add(numeri[i])
-stop_words.add("getty")
-stop_words.add("slides")
 verbi_comuni = "ask become begin call come could find get give go hear keep know leave let like live look make may " \
                "might move need play put run say see seem show start take tell think try use want work would said got " \
                "made went gone knew known took token saw seen came thought gave given found told left "
