@@ -1,5 +1,5 @@
-#caso 1
-#training set e test set sono costruiti sulle History del test set MIND
+# caso 1
+# training set e test set sono costruiti sulle History del test set MIND
 
 # FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_test
 
@@ -216,7 +216,7 @@ tfidf_train = TFIDF(testi_train, idf_train)
 # (idf calcolato su dataset di training)
 tfidf_test = TFIDF(testi_test, idf_train)
 
-#lista di dizionari: rappresentazione utile per il calcolo della similarità coseno
+# lista di dizionari: rappresentazione utile per il calcolo della similarità coseno
 tfidf_dict_test = [] #lista di dizionari: rappresentazione utile per il calcolo della similarità coseno
 for i in tqdm.tqdm(range(len(tfidf_test))):
     tfidf_dict_test.append(dict(tfidf_test[i]))
@@ -224,7 +224,7 @@ for i in tqdm.tqdm(range(len(tfidf_test))):
 # CONTENT BASED PROFILE
 from profili_utenti import ContentBasedProfile
 
-#creazione dizionari ID : lista di tuple che servono poi per ContentBasedProfile
+# creazione dizionari ID : lista di tuple che servono poi per ContentBasedProfile
 # profili utenti in rappresentazione lda
 diz_lda_train = {}
 for i in tqdm.tqdm(range(len(ID_train))):
@@ -272,10 +272,10 @@ risultati = pandas.read_csv("risultati.csv", names=["UID", "NID", "lda", "tfidf"
 # valutazione:  PRECISION-RECALL CURVE
 from raccomandazioni import confusion_matrix_par
 
-#calcolo di precisione e richiamo per diverse soglie N
+# calcolo di precisione e richiamo per diverse soglie N
 N_grid = [5,10,20]
 
-#LDA
+# LDA
 matrici_lda=[]
 for N in tqdm.tqdm(N_grid):
     matrici_lda.append(confusion_matrix_par(n_test,"lda", N, ID_test, risultati))
@@ -288,7 +288,7 @@ for i in tqdm.tqdm(range(len(N_grid))):
     richiami_lda.append(sum(t[1])/righe)
 
 
-#TFIDF
+# TFIDF
 matrici_tfidf=[]
 for N in tqdm.tqdm(N_grid):
     matrici_tfidf.append(confusion_matrix_par(n_test,"tfidf", N, ID_test, risultati))
