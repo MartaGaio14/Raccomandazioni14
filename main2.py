@@ -261,6 +261,7 @@ profili_tfidf = []
 for storia in tqdm.tqdm(n_train):
     profili_tfidf.append(ContentBasedProfile(storia, diz_tfidf_train))
 
+
 # RACCOMANDAZIONI
 """
 from similarita import cosSim
@@ -272,7 +273,7 @@ import multiprocessing as mp
 N_CPU = mp.cpu_count()
 with open("risultati2.csv", "w") as file:
     writer = csv.writer(file)
-    for i in tqdm.tqdm(range(righe)):  # gira sui 500 utenti
+    for i in tqdm.tqdm(range(righe)):  # gira sui 1000 utenti
         pool = mp.Pool(processes = N_CPU)
         f = partial(cosSim, profili_tfidf[i])
         dr_tfidf=list(tfidf_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
@@ -293,9 +294,38 @@ with open("risultati2.csv", "w") as file:
 
 risultati = pandas.read_csv("risultati2.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
-# valutazione:  ndcg
+# valutazione
+N_grid=[5,10,20] # calcoliamo precisione richiamo e ndcg medi per questi diversi valori di N (numero di news da raccomandare)
+
+#precisione e richiamo
+from raccomandazioni import confusion_matrix_par2
+
+#lda
+matrici_lda=[]
+for N in tqdm.tqdm(N_grid):
+    matrici_lda.append(confusion_matrix_par2(n_test,"lda", N, Impr, risultati))
+
+precisioni_lda=[]
+richiami_lda=[]
+for i in tqdm.tqdm(range(len(N_grid))):
+    t=list(zip(*matrici_lda[i]))
+    precisioni_lda.append(sum(t[0])/righe)
+    richiami_lda.append(sum(t[1])/righe)
+
+#tfidf
+matrici_tfidf=[]
+for N in tqdm.tqdm(N_grid):
+    matrici_tfidf.append(confusion_matrix_par2(n_test,"tfidf", N, Impr, risultati))
+
+precisioni_tfidf=[]
+richiami_tfidf=[]
+for i in tqdm.tqdm(range(len(N_grid))):
+    t=list(zip(*matrici_tfidf[i]))
+    precisioni_tfidf.append(sum(t[0])/righe)
+    richiami_tfidf.append(sum(t[1])/righe)
+
+#ndcg
 from raccomandazioni import ndcg_par
-N_grid=[5,10,20] # calcoliamo l'ndcg medio per questi diversi valori di N (numero di news da raccomandare)
 
 #lda
 ndcg_lda=[]
