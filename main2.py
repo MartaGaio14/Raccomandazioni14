@@ -28,7 +28,7 @@ Set = Set_piu100.reset_index(drop=True)
 # campionamento casuale di 1000 utenti (non ripetuti) tra quelli con History maggiori di 100
 import numpy as np
 np.random.seed(122020)
-righe = 500  # numero di utenti da campionare
+righe = 1000  # numero di utenti da campionare
 campione = np.random.randint(0, len(Set), righe)
 dati_camp = Set.loc[campione]
 dati_camp = dati_camp.reset_index(drop=True)
@@ -65,9 +65,9 @@ for i in range(len(Hist)):
     tutteNID.extend(Hist[i])
     tutteNID.extend(Impr[i].keys())
 tutteNID = list(dict.fromkeys(tutteNID))
-"""
-# FILE CON LE INFORMAZIONI SULLE NEWS: news_test
 
+# FILE CON LE INFORMAZIONI SULLE NEWS: news_test
+"""
 # apertura del file
 news_file = open("news_train.tsv", encoding="Latin1")
 read_news = pandas.read_csv(news_file, sep="\t", header=None,
@@ -98,9 +98,10 @@ with open("testi2.csv", "w", encoding="Utf-8") as file:
         writer.writerow([news.ID[i], extraction(URLS[i])])
 
 # DA TERMINALE: PREPROCESSING CON MAP REDUCE
-# python3 MapReduce.py testi.csv > testi_proc2.csv
+# python MapReduce.py testi2.csv > testi_proc2.csv
 
 """
+
 # apertura file testi preprocessati
 testi_proc = pandas.read_csv("testi_proc2.csv", names=["ID", "parole"], header=None, error_bad_lines=False, sep="\t")
 
@@ -188,8 +189,8 @@ pickle.dump(ldamodel, open('lda_model2.sav', 'wb'))
 ldamodel = pickle.load(open('lda_model2.sav', 'rb'))
 # rappresentazione in dimensioni latenti di tutti i testi del corpus di train
 lda_train = ldamodel[corpus_train]  # lista di liste
-"""
 
+"""
 # valutazione del topic model tramite misura di coerenza
 coherence_model_lda = models.CoherenceModel(model=ldamodel, texts=testi_train, dictionary=dictionary, coherence='c_v')
 coherence_lda = coherence_model_lda.get_coherence()
