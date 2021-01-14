@@ -29,9 +29,9 @@ def confusion_matrix(pos_utente, storia, tipo, N, ID_test, risultati, coda=None)
     tn = len(ID_test) - len(storia) - fp  # true negative
     precision = tp / (tp + fp)  # equivalente a tp/ N
     recall = tp / (tp + fn) # equivalente a tp / len(storia)
-    if coda is None:  # se è non valorizzato ritorno il risultato
+    if coda is None:  # se è non valorizzato ritorna il risultato
         return (precision, recall)
-    else:  # altrimenti accodo il risultato che ho trovato
+    else:  # altrimenti accoda il risultato che ho trovato
         return coda.put((precision, recall))
 
 #funzione parallelizzata della funzione confusion_matrix tramite multithreding
@@ -70,7 +70,7 @@ def raccomandati2(pos_utente, tipo, N, Impr, risultati):
     return list(top_tipo.NID)
 
 
-#per ogni utente vengono inseriti imp: il dizionario contenente la sua impression, racc: la lista delle news raccomandate
+# per ogni utente vengono inseriti imp: il dizionario contenente la sua impression, racc: la lista delle news raccomandati
 def input_ndcg(imp, racc):
     true = array.array("i", ) # vettore contenente gli 0 e 1 dell' impression dell'utente
     for j in list(imp.values()):
@@ -88,9 +88,9 @@ def input_ndcg(imp, racc):
 def ndcg(pos_utente, tipo, N, imp, risultati, coda=None):
     racc = raccomandati2(pos_utente, tipo,  N, imp, risultati)
     true, prev = input_ndcg(imp[pos_utente], racc)
-    if coda is None:  # se è non valorizzato ritorno il risultato
+    if coda is None:  # se è non valorizzato ritorna il risultato
         return ndcg_score(true, prev)
-    else:  # altrimenti accodo il risultato che ho trovato
+    else:  # altrimenti accoda il risultato che ho trovato
         return coda.put(ndcg_score(true, prev))
 
 # versione parallelizzata della funzione ndcg tramite multithreding
@@ -98,7 +98,7 @@ def ndcg_par(tipo, N, imp, risultati):
     coda = mp.Queue()
     threads = [threading.Thread(target=ndcg, args=(pos_utente,),
                                 kwargs={"tipo": tipo, "N": N, "imp": imp, "risultati": risultati, "coda": coda})
-               for pos_utente in range(500)]
+               for pos_utente in range(1000)]
     for t in threads:
         t.start()
     x = [coda.get() for t in threads]
