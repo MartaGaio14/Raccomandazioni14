@@ -1,7 +1,5 @@
 import multiprocessing as mp
 import threading
-from sklearn.metrics import ndcg_score
-import array
 
 #funzioni utili per il caso 1
 
@@ -10,12 +8,14 @@ import array
 # N è il numero di news da raccomandare
 # ID_test è lista di news candidate alla raccomandazione
 def raccomandati(pos_utente, tipo, N, ID_test, risultati):
+    # selezioniamo i risultati riguardanti l'utente in posizione pos_utente
+    # nota: i risultati sono salvati in ordine per utente
     inizio = pos_utente * len(ID_test)
     fine = inizio + len(ID_test)
-    ut = risultati[inizio:fine] #selezione dati relativi all'utente in questione
-    ut = ut.sort_values(by=[tipo], ascending=False) #ordine decrescente dei dati rispetto alla similarità
+    ut = risultati[inizio:fine]
+    ut = ut.sort_values(by=[tipo], ascending=False) # ordine decrescente dei dati rispetto alla similarità
     ut = ut.reset_index(drop=True)
-    top_tipo = ut[0:N]
+    top_tipo = ut[0:N] # le prime N news più simili
     return list(top_tipo.NID)
 
 # storia: lista delle news lette dall'utente (n_test[i])
@@ -26,7 +26,6 @@ def confusion_matrix(pos_utente, storia, tipo, N, ID_test, risultati, coda=None)
     tp = len(intersection)
     fp = N - tp  # false positive
     fn = len(storia) - tp  # false negative
-    tn = len(ID_test) - len(storia) - fp  # true negative
     precision = tp / (tp + fp)  # equivalente a tp/ N
     recall = tp / (tp + fn) # equivalente a tp / len(storia)
     if coda is None:  # se è non valorizzato ritorna il risultato
@@ -34,7 +33,7 @@ def confusion_matrix(pos_utente, storia, tipo, N, ID_test, risultati, coda=None)
     else:  # altrimenti accoda il risultato che ho trovato
         return coda.put((precision, recall))
 
-#funzione parallelizzata della funzione confusion_matrix tramite multithreding
+# funzione parallelizzata della funzione confusion_matrix tramite multithreding
 def confusion_matrix_par(n_test, tipo, N, ID_test, risultati):
     coda = mp.Queue()
     #args: argomenti dinamici, la posizione dell'utente e la lista delle news del test set che ha letto (storia)
@@ -80,7 +79,7 @@ def piaciute(imp):
 
 # funzione che restituisce precisione e recall delle raccomandazioni effettuate per un certo utente
 def confusion_matrix2(pos_utente, tipo, N, Impr, risultati, coda=None):
-    piac=piaciute(Impr[pos_utente]) # lista delle news cliccate dall'utente
+    piac = piaciute(Impr[pos_utente]) # lista delle news cliccate dall'utente
     racc = raccomandati2(pos_utente, tipo, N, Impr, risultati) # lista delle news raccomandate per l'utente
     racc_set = set(racc)
     intersection = list(racc_set.intersection(piac))  # news lette e raccomandate
@@ -108,38 +107,3 @@ def confusion_matrix_par2(n_test, tipo, N, Impr, risultati):
         t.join()  # blocca il MainThread finché t non è completato
     return x
 
-# per ogni utente vengono inseriti imp: il dizionario contenente la sua impression, racc: la lista delle news raccomandati
-def input_ndcg(imp, racc):
-    true = array.array("i", ) # vettore contenente gli 0 e 1 dell' impression dell'utente
-    for j in list(imp.values()):
-        true.append(int(j))
-    ID = list(imp.keys())
-    prev = array.array("i",)  # vettore contenente gli 0 e 1 predetti dal sistema di raccomandazioni
-    for articolo in ID:
-        if articolo in racc:
-            prev.append(1)
-        else:
-            prev.append(0)
-    return [true], [prev]
-
-# calcola il punteggio ndcg
-def ndcg(pos_utente, tipo, N, imp, risultati, coda=None):
-    racc = raccomandati2(pos_utente, tipo,  N, imp, risultati)
-    true, prev = input_ndcg(imp[pos_utente], racc)
-    if coda is None:  # se è non valorizzato ritorna il risultato
-        return ndcg_score(true, prev)
-    else:  # altrimenti accoda il risultato che ho trovato
-        return coda.put(ndcg_score(true, prev))
-
-# versione parallelizzata della funzione ndcg tramite multithreding
-def ndcg_par(tipo, N, imp, risultati):
-    coda = mp.Queue()
-    threads = [threading.Thread(target=ndcg, args=(pos_utente,),
-                                kwargs={"tipo": tipo, "N": N, "imp": imp, "risultati": risultati, "coda": coda})
-               for pos_utente in range(1000)]
-    for t in threads:
-        t.start()
-    x = [coda.get() for t in threads]
-    for t in threads:
-        t.join()  # blocca il MainThread finché t non è completato
-    return x
