@@ -2,7 +2,7 @@
 import numpy as np
 from numpy import linalg as LA
 
-#confronta il profilo dell'utente con il profilo dell'item, entrambi espressi come dizionari,
+# confronta il profilo dell'utente con il profilo dell'item, entrambi espressi come dizionari,
 # e restituisce solo i valori (i pesi) delle chiavi comuni
 def compara(dictU, dictA):
     paroleu=dictU.keys()
