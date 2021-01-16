@@ -1,12 +1,24 @@
 #caso 2
 # il training set è la History e il test set corrisponde alle Impressions del training set MIND
-
-# FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_training
-
-# apertura del file
 import pandas
 import tqdm
+import numpy as np
+import csv
+import re
+from gensim import models
+import pickle
+from functools import partial
+import multiprocessing as mp
 
+from preprocessing import extraction
+from profili_item import LDA_corpus
+from profili_item import TFIDF, IDF
+from profili_utenti import ContentBasedProfile
+from raccomandazioni import confusion_matrix_par2
+from similarita import cosSim
+
+# FILE SUL COMPORTAMENTO DEGLI UTENTI: behaviors_training
+# apertura del file
 Set = open("behaviors_train.tsv")
 Set1 = pandas.read_csv(Set, sep="\t", header=None, names=["IID", "UID", "Time", "History", "Imp"], usecols=[1, 3, 4])
 Set.close()
@@ -14,26 +26,26 @@ Set.close()
 GrandeSet = Set1.dropna()
 GrandeSet = GrandeSet.reset_index(drop=True)
 
-l = []
+l = [] # utenti con History di lunghezza maggiore di 100
 for i in tqdm.tqdm(range(len(GrandeSet))):
     a = GrandeSet.History[i].split(" ")
     if len(a) > 100:
         l.append(i)
 Set_piu100 = GrandeSet.loc[l]  # sono rimasti 137 605 utenti
-Set_piu100['Imp'] = Set_piu100.groupby(['UID', 'History'])['Imp'].transform(lambda x : ' '.join(x))
+Set_piu100['Imp'] = Set_piu100.groupby(['UID', 'History'])['Imp'].transform(lambda x : ' '.join(x)) # concatenazione
+# delle impression di uno stesso utente
 Set_piu100 = Set_piu100.drop_duplicates() #sono rimasti 11 576 utenti
 Set = Set_piu100.reset_index(drop=True)
 
 
 # campionamento casuale di 1000 utenti (non ripetuti) tra quelli con History maggiori di 100
-import numpy as np
 np.random.seed(122020)
 righe = 1000  # numero di utenti da campionare
 campione = np.random.randint(0, len(Set), righe)
 dati_camp = Set.loc[campione]
 dati_camp = dati_camp.reset_index(drop=True)
 
-Hist = []  # lista di liste news per utente
+Hist = []  # lista di liste di news lette da ogni utente
 Id_utente = []  # lista id utenti
 Impr = [] # lista di dizionari, ciscun dizionario contiene le impressions di un utente (chiave: id della news, valore:
 # 0 o 1 a seconda che quella news sia stata cliccata o meno dall'utente)
@@ -59,7 +71,7 @@ for i in range(len(Hist)):
             del Impr[i][notizia]
 
 
-# creiamo il corpus completo delle news lette e viste dai 500 utenti campionati (senza ripetizioni)
+# creiamo il corpus completo delle news lette e viste dai 1000 utenti campionati (senza ripetizioni)
 tutteNID = []
 for i in range(len(Hist)):
     tutteNID.extend(Hist[i])
@@ -89,9 +101,6 @@ news = news.reset_index(drop=True)
 URLS = list(news.URL)
 
 # estrazione del testi
-import csv
-from preprocessing import extraction
-
 with open("testi2.csv", "w", encoding="Utf-8") as file:
     writer = csv.writer(file, delimiter="\t")
     for i in tqdm.tqdm(range(len(URLS))):
@@ -130,8 +139,7 @@ for i in tqdm.tqdm(range(len(Hist))):
         del Impr[i][x]
 
 
-#divisione delle singole parole preprocessate che vengono lette dal file testi_proc2 come un'unica stringa
-import re
+# divisione delle singole parole preprocessate che vengono lette dal file testi_proc2 come un'unica stringa
 parole = []  # lista di liste delle parole preprocessate per ogni testo
 for i in range(len(testi_proc)):
     a = re.sub(r"([^a-zA-Z\s])", "", testi_proc.parole[i])
@@ -175,10 +183,6 @@ for i in tqdm.tqdm(range(len(testi_proc.ID))):
 
 
 # Rappresentazione in LDA delle news
-from gensim import models
-import pickle
-from profili_item import LDA_corpus
-
 corpus_train, dictionary = LDA_corpus(testi_train)  # creazione del corpus
 """
 #alleniamo il modello e lo salviamo su file
@@ -187,8 +191,10 @@ pickle.dump(ldamodel, open('lda_model2.sav', 'wb'))
 """
 # carichiamo il file col modello allenato
 ldamodel = pickle.load(open('lda_model2.sav', 'rb'))
+
 # rappresentazione in dimensioni latenti di tutti i testi del corpus di train
 lda_train = ldamodel[corpus_train]  # lista di liste
+
 
 """
 # valutazione del topic model tramite misura di coerenza
@@ -212,7 +218,6 @@ lda_test=list(ldamodel.get_document_topics(corpus_test))
 
 # lista di dizionari, uno per ogni utente. Ogni dizionario contiene la rappresentazione in LDA delle news presenti
 # nell'impression dell'utente (chiave: ID della news, valore: dizionario con la sua rappresentazione LDA)
-
 lda_dict_test = []
 for imp in tqdm.tqdm(n_test): # imp è la lista delle news presenti nell'impression dell'utente
     dt = {}
@@ -222,8 +227,6 @@ for imp in tqdm.tqdm(n_test): # imp è la lista delle news presenti nell'impress
     lda_dict_test.append(dt)
 
 # rappresentazione in TFIDF per le news di training
-from profili_item import TFIDF, IDF
-
 idf_train = IDF(testi_train, testi_test)
 tfidf_train = TFIDF(testi_train, idf_train)
 
@@ -242,32 +245,26 @@ for imp in tqdm.tqdm(n_test): # imp è la lista delle news presenti nell'impress
     tfidf_dict_test.append(dt)
 
 # CONTENT BASED PROFILE
-from profili_utenti import ContentBasedProfile
-
-#creazione dizionari ID : lista di tuple che servono poi per ContentBasedProfile
 # profili utenti in rappresentazione lda
-diz_lda_train = {}
+diz_lda_train = {} # dizionario chiave: ID della news di training, valore: lista di tuple con la sua rappresentazione lda
+# rappresentazione utile per ContentBasedProfile
 for i in tqdm.tqdm(range(len(ID_train))):
     diz_lda_train[ID_train[i]] = lda_train[i]
-profili_lda = []
+profili_lda = [] # lista di dizionari: ciascun dizionario contiene il profilo lda di un utente
 for storia in tqdm.tqdm(n_train):
     profili_lda.append(ContentBasedProfile(storia, diz_lda_train))
 
 # profili utenti in rappresentazione tfidf
-diz_tfidf_train = {}
+diz_tfidf_train = {}# dizionario chiave: ID della news di training, valore: lista di tuple con la sua rappresentazione tfidf
+# rappresentazione utile per ContentBasedProfile
 for i in tqdm.tqdm(range(len(ID_train))):
     diz_tfidf_train[ID_train[i]] = tfidf_train[i]
-profili_tfidf = []
+profili_tfidf = []  #lista di dizionari: ciascun dizionario contiene il profilo tfidf di un utente
 for storia in tqdm.tqdm(n_train):
     profili_tfidf.append(ContentBasedProfile(storia, diz_tfidf_train))
 
-
 # RACCOMANDAZIONI
 """
-from similarita import cosSim
-from functools import partial
-import multiprocessing as mp
-
 #creazione file che contiene, per ogni combinazione di utente e ID news delle sue impressions (=le news da raccomandare),
 # la cosine similarity tra il profilo utente e il profilo dell'item, costruiti in entrambe le rappresentazioni (TFIDF/LDA)
 N_CPU = mp.cpu_count()
@@ -278,7 +275,7 @@ with open("risultati2.csv", "w") as file:
         f = partial(cosSim, profili_tfidf[i])
         dr_tfidf=list(tfidf_dict_test[i].values()) #lista degli articoli candidati alla raccomandazione per l'i-esimo utente
         #ciascun articolo è espresso tramite dizionario con la sua rappresentazione in tfidf
-        s_tfidf = pool.map(f, dr_tfidf)
+        s_tfidf = pool.map(f, dr_tfidf) # lista delle similarità tra utente i e tutte le news del suo test set
         pool.close()
         pool.join()
         drid = list(lda_dict_test[i].keys())  # lista degli id degli articoli candidati alla raccomandazione per
@@ -288,17 +285,14 @@ with open("risultati2.csv", "w") as file:
         for j in range(len(lda_dict_test[i])):  # gira sulle nuove news
             u = Id_utente[i]
             n = drid[j]
-            s_lda = cosSim(profili_lda[i], dr_lda[j])
+            s_lda = cosSim(profili_lda[i], dr_lda[j]) # similarità tra utente i e news j
             writer.writerow([u, n, s_lda, s_tfidf[j]])
 """
 
 risultati = pandas.read_csv("risultati2.csv", names=["UID", "NID", "lda", "tfidf"], header=None, error_bad_lines=False)
 
-# valutazione
-N_grid=[5,10,20] # calcoliamo precisione richiamo e ndcg medi per questi diversi valori di N (numero di news da raccomandare)
-
-#precisione e richiamo
-from raccomandazioni import confusion_matrix_par2
+# valutazione: PRECISION-RECALL
+N_grid=[5,10,20] # calcoliamo precisione richiamo medi per questi diversi valori di N (numero di news da raccomandare)
 
 #lda
 matrici_lda=[]
@@ -323,18 +317,3 @@ for i in tqdm.tqdm(range(len(N_grid))):
     t=list(zip(*matrici_tfidf[i]))
     precisioni_tfidf.append(sum(t[0])/righe)
     richiami_tfidf.append(sum(t[1])/righe)
-
-#ndcg
-from raccomandazioni import ndcg_par
-
-#lda
-ndcg_lda=[]
-for N in N_grid:
-    ndcg_lda.append( sum(ndcg_par("lda", N, Impr, risultati))/righe )
-
-
-#tfidf
-ndcg_tfidf=[]
-for N in N_grid:
-    ndcg_tfidf.append( sum(ndcg_par("tfidf", N, Impr, risultati))/righe )
-
